@@ -28,3 +28,6 @@ backend/app/services/openclaw/.device-keys
 
 # SQLite databases
 *.db
+/.playwright-mcp/
+/frontend/e2e-screenshots/
+/frontend/test-results/

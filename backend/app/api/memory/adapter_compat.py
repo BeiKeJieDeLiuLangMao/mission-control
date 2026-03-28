@@ -176,18 +176,24 @@ async def v1_get_graph(
 
     try:
         graph = memory_client.graph
-        filters = {"user_id": user_id}
-        if agent_id:
-            filters["agent_id"] = agent_id
 
-        # 查询 Neo4j 中的关系
-        query = """
-        MATCH (s)-[r]->(t)
-        WHERE s.user_id = $user_id
-        RETURN s.name AS source, type(r) AS relationship, t.name AS target
-        LIMIT 200
-        """
-        results = graph.graph.query(query, params={"user_id": user_id})
+        # 查询 Neo4j 中的关系（支持 agent_id 过滤）
+        if agent_id:
+            query = """
+            MATCH (s)-[r]->(t)
+            WHERE s.user_id = $user_id AND s.agent_id = $agent_id
+            RETURN s.name AS source, type(r) AS relationship, t.name AS target
+            LIMIT 200
+            """
+            results = graph.graph.query(query, params={"user_id": user_id, "agent_id": agent_id})
+        else:
+            query = """
+            MATCH (s)-[r]->(t)
+            WHERE s.user_id = $user_id
+            RETURN s.name AS source, type(r) AS relationship, t.name AS target
+            LIMIT 200
+            """
+            results = graph.graph.query(query, params={"user_id": user_id})
         relations = [
             GraphRelation(
                 source=str(r["source"] or "unknown"),
@@ -216,6 +222,8 @@ async def v1_graph_search(
 
     try:
         filters = {"user_id": user_id}
+        if agent_id:
+            filters["agent_id"] = agent_id
         results = memory_client.graph.search(q, filters)
         relations = []
         for item in results:
@@ -243,17 +251,24 @@ async def v1_graph_stats(
 
     try:
         graph = memory_client.graph
+        params: dict = {"user_id": user_id}
+        agent_filter = ""
+        if agent_id:
+            agent_filter = " AND n.agent_id = $agent_id"
+            params["agent_id"] = agent_id
+
         # 节点数
         node_result = graph.graph.query(
-            "MATCH (n) WHERE n.user_id = $user_id RETURN count(n) AS cnt",
-            params={"user_id": user_id},
+            f"MATCH (n) WHERE n.user_id = $user_id{agent_filter} RETURN count(n) AS cnt",
+            params=params,
         )
         nodes = node_result[0]["cnt"] if node_result else 0
 
         # 关系数和类型
+        rel_agent_filter = " AND s.agent_id = $agent_id" if agent_id else ""
         rel_result = graph.graph.query(
-            "MATCH (s)-[r]->(t) WHERE s.user_id = $user_id RETURN type(r) AS rel_type, count(*) AS cnt",
-            params={"user_id": user_id},
+            f"MATCH (s)-[r]->(t) WHERE s.user_id = $user_id{rel_agent_filter} RETURN type(r) AS rel_type, count(*) AS cnt",
+            params=params,
         )
         relation_types = {}
         total_relations = 0

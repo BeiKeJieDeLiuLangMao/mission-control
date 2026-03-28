@@ -1,21 +1,19 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const BASE = 'http://localhost:3001';
+const BASE = 'http://localhost:3000';
 const TOKEN = '3e7e63bd8bd5267f0a72b4f90dee3a2e96f7689254248f91c4371667451c9178';
 
-/** Authenticate via local auth if needed */
+/** Inject auth token into sessionStorage and navigate to memories page */
 async function login(page: Page) {
+  // Navigate to base first to set the origin
+  await page.goto(BASE);
+  // Inject token directly into sessionStorage (key from localAuth.ts)
+  await page.evaluate((token) => {
+    window.sessionStorage.setItem('mc_local_auth_token', token);
+  }, TOKEN);
+  // Now navigate to memories page with auth
   await page.goto(`${BASE}/memories`);
-  // Local auth: if redirected to sign-in or token input visible
-  const tokenInput = page.locator('input[type="password"], input[placeholder*="token" i], input[placeholder*="Token" i]');
-  if (await tokenInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await tokenInput.fill(TOKEN);
-    const submitBtn = page.locator('button[type="submit"], button:has-text("Continue"), button:has-text("登录"), button:has-text("确认")');
-    await submitBtn.first().click();
-    await page.waitForTimeout(2000);
-  }
-  // Wait for page content to load
-  await page.waitForSelector('body', { timeout: 10000 });
+  await page.waitForTimeout(3000);
 }
 
 test.describe('OpenClaw Memory E2E - Full Chain', () => {

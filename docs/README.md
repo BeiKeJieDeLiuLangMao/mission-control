@@ -20,7 +20,10 @@
 - [Adapters](./modules/adapters.md) — Claude Code hooks + OpenClaw 插件
 - [Database](./modules/database.md) — PostgreSQL + Qdrant + Neo4j
 - [Gateway](./modules/gateway.md) — 网关管理与 Agent 生命周期
-- [平台核心](./modules/platform.md) — Organizations、Boards、Tasks、Approvals
+- [Organizations](./modules/organizations.md) — 多租户、成员、权限
+- [Boards](./modules/boards.md) — 看板、审批、Webhooks
+- [Tasks](./modules/tasks.md) — 任务、依赖、自定义字段、标签
+- [Skills](./modules/skills.md) — 技能市场、技能包、安装
 
 ## 参考
 

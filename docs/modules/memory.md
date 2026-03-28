@@ -99,7 +99,10 @@ backend/app/memory/                   # 9 个顶层包
 
 ### 图谱视图 (`frontend/src/components/molecules/MemoryGraph.tsx`)
 - Force-directed graph (react-force-graph-2d)
-- Agent 筛选 + 关系类型筛选 + 搜索
+- Agent 筛选: 选中后重新请求 API，关系统计和 chips 动态更新 (`adapter_compat.py` Cypher 按 `agent_id` 过滤)
+- 来源筛选: 按 source (OpenClaw/Claude Code) 过滤，选中后将匹配的 agent_ids 传入 API
+- 关系类型筛选: 点击 chip 高亮/过滤特定关系类型
+- 搜索: 节点名称搜索
 
 ### AI 学习视图 (`frontend/src/components/molecules/AILearnView.tsx`)
 - 状态: observations / patterns / skills / health

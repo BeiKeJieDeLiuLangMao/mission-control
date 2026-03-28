@@ -97,7 +97,14 @@ cd frontend && npx playwright test e2e/memories/
 - Source badges（OpenClaw/Claude Code）、memory_type badges（fact/summary）
 - Source 和 Agent 筛选过滤
 - Memory 详情对话框及 Turn 关联（session、status、messages）
-- Graph 可视化、搜索、关系过滤
+- Graph 可视化、搜索、来源筛选、Agent 筛选联动关系统计、关系类型过滤
+
+规范：
+- **必须使用无头模式 (headless)**，不弹出浏览器窗口干扰用户
+  - Playwright config: `headless: true` (`frontend/playwright.config.ts`)
+  - Playwright MCP: `.mcp.json` 中 args 加 `--headless` (已配置在插件 `.mcp.json`)
+- E2E 测试流程: 先用 MCP tool 交互式验证 → 通过后再整理为自动化脚本
+- OpenClaw 链路测试必须从 TUI 实际发消息，不能只模拟 API
 
 ## 覆盖率策略
 

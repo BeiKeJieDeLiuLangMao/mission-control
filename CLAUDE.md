@@ -191,7 +191,10 @@ make backend-migration-check   # 验证迁移图和可逆性
 | Adapters | Claude Code hooks + OpenClaw 插件 | `docs/modules/adapters.md` | `/claude-code-plugin-testing` |
 | Database | PostgreSQL + Qdrant + Neo4j | `docs/modules/database.md` | - |
 | Gateway | 网关管理与 Agent 生命周期 | `docs/modules/gateway.md` | - |
-| Platform | Organizations/Boards/Tasks/Approvals | `docs/modules/platform.md` | - |
+| Organizations | 多租户、成员、权限 | `docs/modules/organizations.md` | - |
+| Boards | 看板、审批、Webhooks | `docs/modules/boards.md` | - |
+| Tasks | 任务、依赖、自定义字段、标签 | `docs/modules/tasks.md` | - |
+| Skills | 技能市场、技能包、安装 | `docs/modules/skills.md` | - |
 | Auth | local token / Clerk JWT | `docs/reference/authentication.md` | - |
 | API | REST API 设计与约定 | `docs/reference/api.md` | - |
 | Testing | pytest + vitest + E2E | `docs/testing/README.md` | `/mission-control-e2e-testing` |

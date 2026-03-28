@@ -86,6 +86,28 @@ const fetchGraphAgents = async (userId: string): Promise<GraphAgentsResponse> =>
   return res.json();
 };
 
+// ------ Source inference (mirrors logic in memories/page.tsx) ------
+const SOURCE_LABELS: Record<string, string> = {
+  "claude-code": "Claude Code",
+  "openclaw": "OpenClaw",
+  "manual": "手工",
+  "unknown": "未知",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  "claude-code": "bg-purple-100 text-purple-700 border-purple-200",
+  "openclaw": "bg-blue-100 text-blue-700 border-blue-200",
+  "manual": "bg-slate-100 text-slate-700 border-slate-200",
+  "unknown": "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+function inferSourceFromAgent(agentId: string): string {
+  if (agentId.startsWith("mc-")) return "openclaw";
+  if (agentId.includes("claude-code")) return "claude-code";
+  if (agentId === "main" || agentId.startsWith("lead-")) return "openclaw";
+  return "unknown";
+}
+
 // ------ Color by relationship type ------
 const REL_COLORS = [
   "#3b82f6", "#8b5cf6", "#ec4899", "#10b981",
@@ -163,18 +185,70 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   const [agentList, setAgentList] = useState<Array<{ agent_id: string; memory_count: number }>>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [selectedRelTypes, setSelectedRelTypes] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showAllRelTypes, setShowAllRelTypes] = useState(false);
+
+  // Derive source list from agents
+  const deriveSources = (): Array<{ source_id: string; label: string; count: number }> => {
+    const countMap: Record<string, number> = {};
+    for (const a of agentList) {
+      const src = inferSourceFromAgent(a.agent_id);
+      countMap[src] = (countMap[src] ?? 0) + a.memory_count;
+    }
+    return Object.entries(countMap)
+      .map(([source_id, count]) => ({
+        source_id,
+        label: SOURCE_LABELS[source_id] || source_id,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+  };
 
   // Load all data
   const loadGraph = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      // If source filter is active (and no specific agent selected), aggregate data from matching agents
+      let effectiveAgentId = selectedAgent || undefined;
+      if (!selectedAgent && selectedSource && agentList.length > 0) {
+        const matchingAgents = agentList.filter(a => inferSourceFromAgent(a.agent_id) === selectedSource);
+        if (matchingAgents.length === 1) {
+          effectiveAgentId = matchingAgents[0].agent_id;
+        } else if (matchingAgents.length > 1) {
+          // Fetch and merge data from all matching agents
+          const allResults = await Promise.all(
+            matchingAgents.map(a => Promise.all([
+              fetchGraph(userId, a.agent_id),
+              fetchGraphStats(userId, a.agent_id),
+            ]))
+          );
+          const mergedRelations: GraphRelation[] = [];
+          const mergedRelTypes: Record<string, number> = {};
+          let totalNodes = 0;
+          let totalRelations = 0;
+          for (const [graphRes, statsRes] of allResults) {
+            mergedRelations.push(...graphRes.relations);
+            totalNodes += statsRes.nodes;
+            totalRelations += statsRes.relations;
+            for (const [rt, cnt] of Object.entries(statsRes.relation_types)) {
+              mergedRelTypes[rt] = (mergedRelTypes[rt] ?? 0) + cnt;
+            }
+          }
+          setGraphData(buildGraphData(mergedRelations));
+          setStats({ nodes: totalNodes, relations: totalRelations, relation_types: mergedRelTypes });
+          setSelectedRelTypes([]);
+          setSearchQuery("");
+          setLoading(false);
+          return;
+        }
+      }
+
       const [graphRes, statsRes] = await Promise.all([
-        fetchGraph(userId, selectedAgent || undefined),
-        fetchGraphStats(userId, selectedAgent || undefined),
+        fetchGraph(userId, effectiveAgentId),
+        fetchGraphStats(userId, effectiveAgentId),
       ]);
       setGraphData(buildGraphData(graphRes.relations));
       setStats(statsRes);
@@ -186,7 +260,7 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedAgent]);
+  }, [userId, selectedAgent, selectedSource, agentList]);
 
   // Load agent list on mount
   useEffect(() => {
@@ -198,6 +272,16 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   useEffect(() => {
     loadGraph();
   }, [loadGraph]);
+
+  // When source changes, reset agent selection if it doesn't match
+  useEffect(() => {
+    if (selectedSource && selectedAgent) {
+      const agentSource = inferSourceFromAgent(selectedAgent);
+      if (agentSource !== selectedSource) {
+        setSelectedAgent("");
+      }
+    }
+  }, [selectedSource, selectedAgent]);
 
   // Get sorted relation types (by count, descending)
   const getSortedRelTypes = (): Array<[string, number]> => {
@@ -313,7 +397,42 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
 
       {/* ---- Filter Bar ---- */}
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
-        {/* Agent filter chips */}
+        {/* Source filter chips */}
+        {agentList.length > 0 && deriveSources().length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-slate-500">来源:</span>
+            <button
+              onClick={() => setSelectedSource("")}
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium transition",
+                !selectedSource
+                  ? "bg-indigo-500 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+              )}
+            >
+              全部
+            </button>
+            {deriveSources().map((src) => {
+              const colorClass = SOURCE_COLORS[src.source_id] || SOURCE_COLORS["unknown"];
+              return (
+                <button
+                  key={src.source_id}
+                  onClick={() => setSelectedSource(src.source_id)}
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-xs font-medium transition",
+                    selectedSource === src.source_id
+                      ? "bg-indigo-500 text-white"
+                      : colorClass,
+                  )}
+                >
+                  {src.label} ({src.count})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Agent filter chips (filtered by selected source) */}
         {agentList.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-slate-500">Agent:</span>
@@ -328,7 +447,7 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
             >
               全部
             </button>
-            {agentList.map((a) => (
+            {agentList.filter(a => !selectedSource || inferSourceFromAgent(a.agent_id) === selectedSource).map((a) => (
               <button
                 key={a.agent_id}
                 onClick={() => setSelectedAgent(a.agent_id)}
