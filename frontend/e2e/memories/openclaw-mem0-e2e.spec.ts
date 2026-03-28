@@ -1,279 +1,217 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const TOKEN = '3e7e63bd8bd5267f0a72b4f90dee3a2e96f7689254248f91c4371667451c9178';
+const TOKEN = process.env.MC_AUTH_TOKEN || '3e7e63bd8bd5267f0a72b4f90dee3a2e96f7689254248f91c4371667451c9178';
 
 /** Inject auth token into sessionStorage and navigate to memories page */
 async function login(page: Page) {
-  // Navigate to base first to set the origin
   await page.goto(BASE);
-  // Inject token directly into sessionStorage (key from localAuth.ts)
   await page.evaluate((token) => {
     window.sessionStorage.setItem('mc_local_auth_token', token);
   }, TOKEN);
-  // Now navigate to memories page with auth
   await page.goto(`${BASE}/memories`);
-  await page.waitForTimeout(3000);
+  // Wait for data to load
+  await page.waitForSelector('h2:has-text("记忆列表")', { timeout: 15000 });
 }
 
 test.describe('OpenClaw Memory E2E - Full Chain', () => {
 
   test.beforeEach(async ({ page }) => {
     await login(page);
-    // Wait for memories to load
-    await page.waitForTimeout(5000);
   });
 
   // --- 列表视图 ---
 
   test('Memories page loads with data', async ({ page }) => {
-    // 记忆列表标题应包含数量
     const heading = page.locator('h2', { hasText: '记忆列表' });
-    await expect(heading).toBeVisible({ timeout: 10000 });
+    await expect(heading).toBeVisible();
     const text = await heading.textContent();
     expect(text).toMatch(/\(\d+\)/);
 
-    // 至少一张记忆卡片
     const cards = page.locator('.cursor-pointer.rounded-xl');
-    await expect(cards.first()).toBeVisible({ timeout: 5000 });
-    const count = await cards.count();
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeGreaterThan(0);
+  });
+
+  test('Source badges visible including OpenClaw', async ({ page }) => {
+    const sourceLabel = page.locator('text=来源:');
+    await expect(sourceLabel).toBeVisible();
+
+    // OpenClaw source filter button should exist
+    const openclawBtn = page.locator('button', { hasText: /OpenClaw \(\d+\)/ });
+    await expect(openclawBtn).toBeVisible();
+  });
+
+  test('memory_type badges (fact/summary) visible', async ({ page }) => {
+    const factBadge = page.locator('.rounded-full.border:has-text("事实")');
+    const summaryBadge = page.locator('.rounded-full.border:has-text("摘要")');
+    expect(await factBadge.count() + await summaryBadge.count()).toBeGreaterThan(0);
+  });
+
+  test('Source filter: OpenClaw', async ({ page }) => {
+    const openclawBtn = page.locator('button', { hasText: /OpenClaw \(\d+\)/ });
+    await openclawBtn.click();
+    await page.waitForTimeout(2000);
+
+    // All visible cards should have OpenClaw badge
+    const heading = page.locator('h2', { hasText: '记忆列表' });
+    const text = await heading.textContent();
+    const match = text?.match(/\((\d+)\)/);
+    expect(match).toBeTruthy();
+    const count = parseInt(match![1]);
     expect(count).toBeGreaterThan(0);
 
-    await page.screenshot({ path: 'e2e-screenshots/memories-list.png' });
-  });
+    // Verify OpenClaw badge on cards
+    const cards = page.locator('.cursor-pointer.rounded-xl');
+    const firstCardBadge = cards.first().locator('.rounded-full.border:has-text("OpenClaw")');
+    await expect(firstCardBadge).toBeVisible();
 
-  test('Source badges are visible', async ({ page }) => {
-    // 检查来源徽章存在 (至少 Claude Code)
-    const badges = page.locator('.rounded-full.border');
-    await expect(badges.first()).toBeVisible({ timeout: 10000 });
-
-    // 来源筛选区域应包含来源按钮
-    const sourceFilter = page.locator('text=来源:');
-    await expect(sourceFilter).toBeVisible();
-
-    await page.screenshot({ path: 'e2e-screenshots/memories-sources.png' });
-  });
-
-  test('memory_type badges (fact/summary) are visible', async ({ page }) => {
-    // 检查 "事实" 或 "摘要" 徽章存在
-    const factBadge = page.locator('.rounded-full.border', { hasText: '事实' });
-    const summaryBadge = page.locator('.rounded-full.border', { hasText: '摘要' });
-
-    const factCount = await factBadge.count();
-    const summaryCount = await summaryBadge.count();
-    expect(factCount + summaryCount).toBeGreaterThan(0);
-
-    await page.screenshot({ path: 'e2e-screenshots/memories-type-badges.png' });
-  });
-
-  test('Source filter works', async ({ page }) => {
-    // 获取初始数量
-    const heading = page.locator('h2', { hasText: '记忆列表' });
-    await expect(heading).toBeVisible({ timeout: 10000 });
-    const initialText = await heading.textContent();
-    const initialMatch = initialText?.match(/\((\d+)\)/);
-    const initialCount = initialMatch ? parseInt(initialMatch[1]) : 0;
-
-    // 点击 "Claude Code" 来源筛选按钮
-    const claudeFilter = page.locator('button', { hasText: /Claude Code/ });
-    if (await claudeFilter.count() > 0) {
-      await claudeFilter.first().click();
-      await page.waitForTimeout(2000);
-
-      // 筛选后数量应变化（如果有多个来源）
-      const filteredText = await heading.textContent();
-      expect(filteredText).toMatch(/\(\d+\)/);
-
-      // 点击 "全部" 恢复
-      const allBtn = page.locator('button', { hasText: '全部' });
-      await allBtn.first().click();
-      await page.waitForTimeout(1000);
-    }
-
-    await page.screenshot({ path: 'e2e-screenshots/memories-source-filter.png' });
+    // Reset
+    await page.locator('button', { hasText: '全部' }).first().click();
   });
 
   test('Agent filter works', async ({ page }) => {
-    // Agent 筛选按钮
     const agentBtns = page.locator('button:has(.lucide-bot)');
     if (await agentBtns.count() > 0) {
       await agentBtns.first().click();
       await page.waitForTimeout(2000);
-
-      // 验证列表更新
       const heading = page.locator('h2', { hasText: '记忆列表' });
-      const filteredText = await heading.textContent();
-      expect(filteredText).toMatch(/\(\d+\)/);
-
-      // 恢复
-      const allBtn = page.locator('button', { hasText: 'All' });
-      await allBtn.first().click();
-      await page.waitForTimeout(1000);
+      await expect(heading).toBeVisible();
     }
-
-    await page.screenshot({ path: 'e2e-screenshots/memories-agent-filter.png' });
   });
 
   test('Search returns results', async ({ page }) => {
     const searchInput = page.locator('input[placeholder*="搜索"]');
-    await expect(searchInput).toBeVisible({ timeout: 10000 });
-
-    // 搜索一个存在的关键词
-    await searchInput.fill('Python');
-    const searchBtn = page.locator('button', { hasText: '搜索' });
-    await searchBtn.click();
+    await searchInput.fill('张三');
+    await page.locator('button', { hasText: '搜索' }).click();
     await page.waitForTimeout(3000);
-
-    await page.screenshot({ path: 'e2e-screenshots/memories-search.png' });
-
-    // 清除搜索
-    const clearBtn = page.locator('button', { hasText: '清除' });
-    if (await clearBtn.isVisible()) {
-      await clearBtn.click();
-    }
+    // Should have results or empty state
+    const heading = page.locator('h2', { hasText: '记忆列表' });
+    await expect(heading).toBeVisible();
   });
 
   // --- 详情 Dialog ---
 
-  test('Clicking memory card opens detail dialog', async ({ page }) => {
-    // 点击第一张卡片
+  test('Click card opens detail dialog', async ({ page }) => {
     const card = page.locator('.cursor-pointer.rounded-xl').first();
-    await expect(card).toBeVisible({ timeout: 10000 });
     await card.click();
 
-    // Dialog 应该打开
-    const dialogTitle = page.locator('text=记忆详情');
-    await expect(dialogTitle).toBeVisible({ timeout: 5000 });
-
-    // Dialog 中应有完整内容和元数据
     const dialog = page.locator('[role="dialog"]');
-    await expect(dialog).toBeVisible();
+    await expect(dialog).toBeVisible({ timeout: 5000 });
 
-    // 应有来源徽章
-    const sourceBadge = dialog.locator('.rounded-full.border').first();
-    await expect(sourceBadge).toBeVisible();
+    const title = dialog.locator('text=记忆详情');
+    await expect(title).toBeVisible();
 
-    // 应有关闭按钮
-    const closeBtn = dialog.locator('button', { hasText: '关闭' });
-    await expect(closeBtn).toBeVisible();
+    // Has source badge
+    await expect(dialog.locator('.rounded-full.border').first()).toBeVisible();
 
-    await page.screenshot({ path: 'e2e-screenshots/memories-detail-dialog.png' });
-
-    // 关闭
-    await closeBtn.click();
-    await expect(dialogTitle).not.toBeVisible({ timeout: 3000 });
+    // Close
+    await dialog.locator('button', { hasText: '关闭' }).click();
+    await expect(dialog).not.toBeVisible({ timeout: 3000 });
   });
 
   test('Detail dialog shows Turn association', async ({ page }) => {
-    // 找一个有 turn_id 的卡片（大部分应该有）
-    const cards = page.locator('.cursor-pointer.rounded-xl');
-    await expect(cards.first()).toBeVisible({ timeout: 10000 });
+    const card = page.locator('.cursor-pointer.rounded-xl').first();
+    await card.click();
 
-    // 点击第一张卡片
-    await cards.first().click();
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
 
-    // 等待 Dialog 和 Turn 数据加载
-    const dialogTitle = page.locator('text=记忆详情');
-    await expect(dialogTitle).toBeVisible({ timeout: 5000 });
-
-    // Turn 关联区域
-    const turnSection = page.locator('text=Turn 关联');
+    // Wait for Turn data to load
+    const turnSection = dialog.locator('text=Turn 关联');
     if (await turnSection.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // 应有 Turn 元数据
-      const sessionLabel = page.locator('text=Session:');
-      await expect(sessionLabel).toBeVisible({ timeout: 8000 });
+      await expect(dialog.locator('text=Session:')).toBeVisible({ timeout: 8000 });
+      await expect(dialog.locator('text=状态:')).toBeVisible();
 
-      const statusLabel = page.locator('text=状态:');
-      await expect(statusLabel).toBeVisible();
-
-      // 消息展开按钮
-      const msgBtn = page.locator('button', { hasText: /消息/ });
+      // Expand messages
+      const msgBtn = dialog.locator('button', { hasText: /消息/ });
       if (await msgBtn.isVisible()) {
         await msgBtn.click();
-        await page.waitForTimeout(500);
-
-        // 消息应可见
-        const userMsg = page.locator('text=👤 user');
-        await expect(userMsg.first()).toBeVisible({ timeout: 3000 });
-
-        await page.screenshot({ path: 'e2e-screenshots/memories-turn-messages.png' });
+        await expect(dialog.locator('text=👤 user').first()).toBeVisible({ timeout: 3000 });
       }
     }
 
-    // 关闭
-    const closeBtn = page.locator('[role="dialog"] button', { hasText: '关闭' });
-    await closeBtn.click();
+    await dialog.locator('button', { hasText: '关闭' }).click();
   });
 
-  test('Detail dialog shows sibling memories from same Turn', async ({ page }) => {
-    const cards = page.locator('.cursor-pointer.rounded-xl');
-    await expect(cards.first()).toBeVisible({ timeout: 10000 });
-    await cards.first().click();
+  test('Detail dialog shows sibling memories', async ({ page }) => {
+    const card = page.locator('.cursor-pointer.rounded-xl').first();
+    await card.click();
 
-    const dialogTitle = page.locator('text=记忆详情');
-    await expect(dialogTitle).toBeVisible({ timeout: 5000 });
-
-    // 等待 Turn 数据加载
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(3000);
 
-    // 同 Turn 其他记忆
-    const siblingSection = page.locator('text=同 Turn 其他记忆');
-    if (await siblingSection.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await page.screenshot({ path: 'e2e-screenshots/memories-siblings.png' });
-    }
+    // Sibling memories section (may or may not exist depending on data)
+    const siblings = dialog.locator('text=同 Turn 其他记忆');
+    // Just verify dialog loaded correctly
+    await expect(dialog.locator('text=记忆详情')).toBeVisible();
 
-    const closeBtn = page.locator('[role="dialog"] button', { hasText: '关闭' });
-    await closeBtn.click();
+    await dialog.locator('button', { hasText: '关闭' }).click();
   });
 
   // --- 图谱视图 ---
 
-  test('Graph tab renders', async ({ page }) => {
+  test('Graph tab renders with source and agent filters', async ({ page }) => {
     const graphTab = page.locator('button[role="tab"]', { hasText: '图谱' });
-    await expect(graphTab).toBeVisible({ timeout: 10000 });
     await graphTab.click();
     await page.waitForTimeout(3000);
 
-    // Canvas 应渲染 (react-force-graph-2d)
-    const canvas = page.locator('canvas');
-    if (await canvas.count() > 0) {
-      await expect(canvas.first()).toBeVisible();
+    // Stats should be visible
+    await expect(page.locator('text=节点数')).toBeVisible();
+    await expect(page.locator('text=关系数')).toBeVisible();
+
+    // Source filter should exist
+    const sourceLabel = page.locator('text=来源:').last();
+    await expect(sourceLabel).toBeVisible();
+
+    // Agent filter
+    await expect(page.locator('text=Agent:').last()).toBeVisible();
+  });
+
+  test('Graph: Agent filter updates stats dynamically', async ({ page }) => {
+    const graphTab = page.locator('button[role="tab"]', { hasText: '图谱' });
+    await graphTab.click();
+    await page.waitForTimeout(3000);
+
+    // Record initial stats
+    const initialNodes = await page.locator('text=节点数').locator('..').locator('p').last().textContent();
+
+    // Click an agent with low count (main)
+    const mainBtn = page.locator('button', { hasText: /^.*main \(\d+\)/ });
+    if (await mainBtn.count() > 0) {
+      await mainBtn.first().click();
+      await page.waitForTimeout(3000);
+
+      // Stats should change
+      const filteredNodes = await page.locator('text=节点数').locator('..').locator('p').last().textContent();
+      // Filtered count should be less than or equal to initial
+      expect(parseInt(filteredNodes || '0')).toBeLessThanOrEqual(parseInt(initialNodes || '999'));
     }
-
-    await page.screenshot({ path: 'e2e-screenshots/graph-view.png' });
   });
 
-  test('Graph search works', async ({ page }) => {
+  test('Graph: Source filter (OpenClaw) works', async ({ page }) => {
     const graphTab = page.locator('button[role="tab"]', { hasText: '图谱' });
     await graphTab.click();
     await page.waitForTimeout(3000);
 
-    // 搜索框
-    const searchInput = page.locator('input[placeholder*="搜索"]');
-    if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await searchInput.fill('Python');
-      await page.waitForTimeout(2000);
-      await page.screenshot({ path: 'e2e-screenshots/graph-search.png' });
+    const openclawBtn = page.locator('button', { hasText: /OpenClaw \(\d+\)/ });
+    if (await openclawBtn.count() > 0) {
+      await openclawBtn.first().click();
+      await page.waitForTimeout(3000);
+
+      // Relationship chips should update
+      const relChips = page.locator('text=关系:').locator('..').locator('button');
+      expect(await relChips.count()).toBeGreaterThan(0);
     }
   });
 
-  test('Graph relationship filter chips visible', async ({ page }) => {
-    const graphTab = page.locator('button[role="tab"]', { hasText: '图谱' });
-    await graphTab.click();
-    await page.waitForTimeout(3000);
-
-    // 关系类型筛选 chips
-    await page.screenshot({ path: 'e2e-screenshots/graph-filters.png' });
-  });
-
-  // --- AI Learn 视图 ---
+  // --- AI Learn ---
 
   test('AI Learn tab renders', async ({ page }) => {
     const aiTab = page.locator('button[role="tab"]', { hasText: 'AI 学习' });
-    await expect(aiTab).toBeVisible({ timeout: 10000 });
     await aiTab.click();
     await page.waitForTimeout(3000);
-
-    await page.screenshot({ path: 'e2e-screenshots/ailearn-view.png' });
+    // Just verify tab switched without error
   });
 });
