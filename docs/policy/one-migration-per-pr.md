@@ -1,23 +1,23 @@
-# Policy: one DB migration per PR
+# 策略: 每个 PR 仅允许一个数据库迁移
 
-## Rule
-If a pull request adds migration files under:
+## 规则
+如果一个 pull request 在以下路径添加迁移文件：
 
 - `backend/migrations/versions/*.py`
 
-…then it must add **no more than one** migration file.
+……则最多只能添加**一个**迁移文件。
 
-## Why
-- Makes review and rollback simpler.
-- Reduces surprise Alembic multiple-head situations.
-- Keeps CI/installer failures easier to debug.
+## 原因
+- 使 review 和回滚更简单。
+- 减少意外的 Alembic 多 head 情况。
+- 使 CI/installer 故障更容易调试。
 
-## Common exceptions / guidance
-- If you have multiple Alembic heads, prefer creating **one** merge migration.
-- If changes are unrelated, split into multiple PRs.
+## 常见例外 / 指导
+- 如果存在多个 Alembic head，优先创建**一个** merge 迁移。
+- 如果变更不相关，请拆分为多个 PR。
 
-## CI enforcement
-CI runs `scripts/ci/one_migration_per_pr.sh` on PRs and fails if >1 migration file is added.
+## CI 强制执行
+CI 在 PR 上运行 `scripts/ci/one_migration_per_pr.sh`，如果添加了超过 1 个迁移文件则会失败。
 
-## Notes
-This policy does not replace the existing migration integrity gate (`make backend-migration-check`). It is a lightweight guardrail to prevent multi-migration PRs.
+## 备注
+此策略不替代现有的迁移完整性检查 (`make backend-migration-check`)。它是一个轻量级护栏，用于防止多迁移 PR。

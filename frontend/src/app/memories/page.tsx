@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useCallback, useEffect } from "react";
-import { Brain, Search, Plus, Trash2, RefreshCw, Bot, Filter } from "lucide-react";
+import { Brain, Search, Plus, Trash2, RefreshCw, Bot, Filter, ChevronDown, ChevronUp, MessageSquare, Clock, FileText, Layers } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { DashboardShell } from "@/components/templates/DashboardShell";
@@ -13,6 +13,12 @@ import { AILearnView } from "@/components/molecules/AILearnView";
 import { MemoryGraph } from "@/components/molecules/MemoryGraph";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/auth/clerk";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
 import { cn } from "@/lib/utils";
@@ -51,6 +57,17 @@ interface MemoryStats {
 interface AgentInfo {
   agent_id: string;
   count: number;
+}
+
+interface TurnDetail {
+  id: string;
+  session_id: string;
+  user_id: string;
+  agent_id: string;
+  messages: Array<{ role: string; content: string }>;
+  source: string;
+  processing_status: string;
+  created_at: string;
 }
 
 // ------ API ------
@@ -242,6 +259,22 @@ const deleteMemory = async (memoryId: string): Promise<void> => {
   if (!res.ok) throw new Error(`Failed to delete memory: ${res.statusText}`);
 };
 
+const fetchTurn = async (turnId: string): Promise<TurnDetail> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/v2/turns/${turnId}`);
+  if (!res.ok) throw new Error(`Failed to fetch turn: ${res.statusText}`);
+  return res.json();
+};
+
+const fetchMemoriesByTurn = async (turnId: string, userId: string): Promise<MemoryItem[]> => {
+  const url = new URL(`${getApiBaseUrl()}/api/v2/memories/`);
+  url.searchParams.set("user_id", userId);
+  url.searchParams.set("turn_id", turnId);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Failed to fetch turn memories: ${res.statusText}`);
+  const data = await res.json();
+  return data.items || [];
+};
+
 // ------ Helpers ------
 function formatDate(dateStr: unknown): string {
   if (!dateStr) return "—";
@@ -306,20 +339,44 @@ const SOURCE_COLORS: Record<string, string> = {
   "unknown": "bg-gray-100 text-gray-700 border-gray-200",
 };
 
+// memory_type 标签和颜色
+const TYPE_LABELS: Record<string, string> = {
+  "fact": "事实",
+  "summary": "摘要",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  "fact": "bg-amber-100 text-amber-700 border-amber-200",
+  "summary": "bg-teal-100 text-teal-700 border-teal-200",
+};
+
+// processing_status 颜色
+const STATUS_COLORS: Record<string, string> = {
+  "completed": "bg-green-100 text-green-700",
+  "pending": "bg-yellow-100 text-yellow-700",
+  "processing": "bg-blue-100 text-blue-700",
+  "failed": "bg-red-100 text-red-700",
+};
+
 // ------ Memory Card ------
 function MemoryCard({
   memory,
   onDelete,
+  onSelect,
 }: {
   memory: MemoryItem;
   onDelete: (id: string) => void;
+  onSelect: (memory: MemoryItem) => void;
 }) {
   const [deleting, setDeleting] = useState(false);
   const source = inferSource(memory);
   const sourceLabel = SOURCE_LABELS[source] || source;
   const sourceColor = SOURCE_COLORS[source] || SOURCE_COLORS["unknown"];
+  const typeLabel = memory.memory_type ? TYPE_LABELS[memory.memory_type] : null;
+  const typeColor = memory.memory_type ? (TYPE_COLORS[memory.memory_type] || "") : "";
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setDeleting(true);
     try {
       await deleteMemory(memory.id);
@@ -330,7 +387,10 @@ function MemoryCard({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300">
+    <div
+      className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300"
+      onClick={() => onSelect(memory)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-relaxed text-slate-700">
@@ -341,6 +401,12 @@ function MemoryCard({
             <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", sourceColor)}>
               {sourceLabel}
             </span>
+            {/* memory_type Badge */}
+            {typeLabel && (
+              <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", typeColor)}>
+                {typeLabel}
+              </span>
+            )}
             {/* Agent Badge */}
             {(() => {
               const metadata = memory.metadata__ as Record<string, unknown> | undefined;
@@ -467,6 +533,229 @@ function AgentFilter({
   );
 }
 
+// ------ Memory Detail Dialog ------
+function MemoryDetailDialog({
+  memory,
+  open,
+  onClose,
+  userId,
+  onDelete,
+}: {
+  memory: MemoryItem | null;
+  open: boolean;
+  onClose: () => void;
+  userId: string;
+  onDelete: (id: string) => void;
+}) {
+  const [turn, setTurn] = useState<TurnDetail | null>(null);
+  const [turnMemories, setTurnMemories] = useState<MemoryItem[]>([]);
+  const [turnLoading, setTurnLoading] = useState(false);
+  const [messagesExpanded, setMessagesExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!open || !memory?.turn_id) {
+      setTurn(null);
+      setTurnMemories([]);
+      setMessagesExpanded(false);
+      return;
+    }
+    setTurnLoading(true);
+    Promise.all([
+      fetchTurn(memory.turn_id).catch(() => null),
+      fetchMemoriesByTurn(memory.turn_id, userId).catch(() => []),
+    ]).then(([t, mems]) => {
+      setTurn(t);
+      setTurnMemories(mems);
+    }).finally(() => setTurnLoading(false));
+  }, [open, memory?.turn_id, userId]);
+
+  if (!memory) return null;
+
+  const source = inferSource(memory);
+  const sourceLabel = SOURCE_LABELS[source] || source;
+  const sourceColor = SOURCE_COLORS[source] || SOURCE_COLORS["unknown"];
+  const typeLabel = memory.memory_type ? TYPE_LABELS[memory.memory_type] : null;
+  const typeColor = memory.memory_type ? (TYPE_COLORS[memory.memory_type] || "") : "";
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteMemory(memory.id);
+      onDelete(memory.id);
+      onClose();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // 同 Turn 其他记忆（排除当前记忆）
+  const siblingMemories = turnMemories.filter((m) => m.id !== memory.id);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-slate-500" />
+            记忆详情
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* 元数据 */}
+          <div className="flex flex-wrap items-center gap-2">
+            {typeLabel && (
+              <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", typeColor)}>
+                {typeLabel}
+              </span>
+            )}
+            <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", sourceColor)}>
+              {sourceLabel}
+            </span>
+            {(() => {
+              const metadata = memory.metadata__ as Record<string, unknown> | undefined;
+              const agentId = memory.agentId || memory.agent_id || String(metadata?.agentId || "");
+              return agentId ? (
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Bot className="h-3 w-3" />
+                  {agentId}
+                </Badge>
+              ) : null;
+            })()}
+            <span className="text-xs text-slate-400">
+              <Clock className="mr-1 inline h-3 w-3" />
+              {formatDate(memory.created_at)}
+            </span>
+          </div>
+
+          {/* 完整记忆内容 */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+              {memory.content}
+            </p>
+          </div>
+
+          {/* Turn 关联 */}
+          {memory.turn_id && (
+            <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Layers className="h-4 w-4" />
+                Turn 关联
+              </div>
+
+              {turnLoading ? (
+                <div className="h-16 animate-pulse rounded-lg bg-slate-100" />
+              ) : turn ? (
+                <div className="space-y-3">
+                  {/* Turn 元数据 */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <div>
+                      <span className="text-slate-400">Turn ID: </span>
+                      <span className="font-mono text-slate-600">{turn.id.slice(0, 12)}...</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">状态: </span>
+                      <span className={cn("rounded px-1.5 py-0.5 font-medium", STATUS_COLORS[turn.processing_status] || "bg-slate-100 text-slate-600")}>
+                        {turn.processing_status}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Session: </span>
+                      <span className="font-mono text-slate-600">{turn.session_id.length > 24 ? turn.session_id.slice(0, 24) + "..." : turn.session_id}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">来源: </span>
+                      <span className="text-slate-600">{turn.source}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Agent: </span>
+                      <span className="text-slate-600">{turn.agent_id}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">时间: </span>
+                      <span className="text-slate-600">{formatDate(turn.created_at)}</span>
+                    </div>
+                  </div>
+
+                  {/* 消息列表 (折叠/展开) */}
+                  {turn.messages.length > 0 && (
+                    <div>
+                      <button
+                        onClick={() => setMessagesExpanded(!messagesExpanded)}
+                        className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        消息 ({turn.messages.length})
+                        {messagesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                      </button>
+                      {messagesExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {turn.messages.map((msg, i) => (
+                            <div key={i} className={cn(
+                              "rounded-lg p-3 text-xs",
+                              msg.role === "user" ? "bg-blue-50 border border-blue-100" : "bg-slate-50 border border-slate-100"
+                            )}>
+                              <span className="font-semibold text-slate-500">
+                                {msg.role === "user" ? "👤 user" : "🤖 assistant"}
+                              </span>
+                              <p className="mt-1 whitespace-pre-wrap text-slate-700">
+                                {msg.content.length > 500 ? msg.content.slice(0, 500) + "..." : msg.content}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 同 Turn 其他记忆 */}
+                  {siblingMemories.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 mb-2">
+                        同 Turn 其他记忆 ({siblingMemories.length})
+                      </p>
+                      <div className="space-y-1.5">
+                        {siblingMemories.map((m) => {
+                          const tl = m.memory_type ? TYPE_LABELS[m.memory_type] : null;
+                          const tc = m.memory_type ? (TYPE_COLORS[m.memory_type] || "") : "";
+                          return (
+                            <div key={m.id} className="flex items-start gap-2 rounded-lg bg-slate-50 p-2 text-xs">
+                              {tl && (
+                                <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium", tc)}>
+                                  {tl}
+                                </span>
+                              )}
+                              <span className="text-slate-600">{truncate(m.content, 120)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">Turn 信息不可用</p>
+              )}
+            </div>
+          )}
+
+          {/* 操作按钮 */}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={handleDelete} disabled={deleting} className="text-red-500 hover:text-red-700">
+              <Trash2 className="mr-1 h-3 w-3" />
+              {deleting ? "删除中..." : "删除"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              关闭
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ------ Main Page ------
 export default function MemoriesPage() {
   const { isSignedIn } = useAuth();
@@ -486,6 +775,7 @@ export default function MemoriesPage() {
   const [newMemoryText, setNewMemoryText] = useState("");
   const [addingMemory, setAddingMemory] = useState(false);
   const [view, setView] = useState<"list" | "graph" | "ailearn">("list");
+  const [selectedMemory, setSelectedMemory] = useState<MemoryItem | null>(null);
 
   const userId = "yishu";
 
@@ -772,6 +1062,7 @@ export default function MemoriesPage() {
                     key={memory.id}
                     memory={memory}
                     onDelete={handleDeleteMemory}
+                    onSelect={setSelectedMemory}
                   />
                 ))}
               </div>
@@ -780,6 +1071,15 @@ export default function MemoriesPage() {
           )}
         </div>
       </main>
+
+      {/* Memory Detail Dialog */}
+      <MemoryDetailDialog
+        memory={selectedMemory}
+        open={selectedMemory !== null}
+        onClose={() => setSelectedMemory(null)}
+        userId={userId}
+        onDelete={handleDeleteMemory}
+      />
     </DashboardShell>
   );
 }

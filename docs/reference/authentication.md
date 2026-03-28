@@ -1,39 +1,39 @@
-# Authentication
+# 认证
 
-Mission Control supports two auth modes via `AUTH_MODE`:
+Mission Control 通过 `AUTH_MODE` 支持两种认证模式：
 
-- `local`: shared bearer token auth for self-hosted deployments
-- `clerk`: Clerk JWT auth
+- `local`：共享 bearer token 认证，适用于自托管部署
+- `clerk`：Clerk JWT 认证
 
-## Local mode
+## Local 模式
 
-Backend:
+后端：
 
 - `AUTH_MODE=local`
 - `LOCAL_AUTH_TOKEN=<token>`
 
-Frontend:
+前端：
 
 - `NEXT_PUBLIC_AUTH_MODE=local`
-- Provide the token via the login UI.
+- 通过登录界面提供 token。
 
-## Clerk mode
+## Clerk 模式
 
-Backend:
+后端：
 
 - `AUTH_MODE=clerk`
 - `CLERK_SECRET_KEY=<secret>`
 
-Frontend:
+前端：
 
 - `NEXT_PUBLIC_AUTH_MODE=clerk`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=<key>`
 
-## Agent authentication
+## Agent 认证
 
-Autonomous agents primarily authenticate via an `X-Agent-Token` header. On shared user/agent routes, the backend also accepts `Authorization: Bearer <agent-token>` after user auth does not resolve. See [API reference](api.md) for details.
+自主 agent 主要通过 `X-Agent-Token` 头进行认证。在用户/agent 共享的路由上，如果用户认证未能解析，后端也接受 `Authorization: Bearer <agent-token>`。详见 [API 参考](api.md)。
 
-Security notes:
+安全说明：
 
-- Agent auth is rate-limited to **20 requests per 60 seconds per IP**. Exceeding this returns `429 Too Many Requests`.
-- Authentication failure logs may include a short token prefix for debugging, but never the full token.
+- Agent 认证的限流为**每个 IP 每 60 秒 20 个请求**。超过此限制将返回 `429 Too Many Requests`。
+- 认证失败的日志可能包含 token 的短前缀以便调试，但绝不会包含完整的 token。

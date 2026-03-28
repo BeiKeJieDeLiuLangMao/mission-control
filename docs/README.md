@@ -1,26 +1,37 @@
-# Mission Control docs
+# Mission Control 文档
 
-This folder is the documentation home for **OpenClaw Mission Control**.
+本目录是 OpenClaw Mission Control 的文档主页。
 
-## Start here
+## 快速开始
 
-- [Getting started](./getting-started/README.md)
-- [Development](./development/README.md)
-- [Testing](./testing/README.md)
-- [Deployment](./deployment/README.md)
-- [Release checklist](./release/README.md)
-- [Operations](./operations/README.md)
-- [Troubleshooting](./troubleshooting/README.md)
-- [Gateway agent provisioning and check-in troubleshooting](./troubleshooting/gateway-agent-provisioning.md)
-- [Gateway WebSocket protocol](./openclaw_gateway_ws.md)
-- [OpenClaw baseline configuration](./openclaw_baseline_config.md)
+- [快速入门](./getting-started/README.md)
+- [开发指南](./development/README.md)
+- [测试](./testing/README.md)
+- [部署](./deployment/README.md)
+- [发布清单](./release/README.md)
+- [运维](./operations/README.md)
+- [故障排查](./troubleshooting/README.md)
 
-## Reference
+## 模块深入
 
-- [Configuration reference](./reference/configuration.md)
-- [Authentication](./reference/authentication.md)
-- [API notes](./reference/api.md)
+处理具体功能模块时，从这里获取详细上下文。
 
-## Contributing to docs
+- [Memory](./modules/memory.md) — AI 持久化记忆 (架构、数据流、环境变量、故障排查)
+- [Adapters](./modules/adapters.md) — Claude Code hooks + OpenClaw 插件
+- [Database](./modules/database.md) — PostgreSQL + Qdrant + Neo4j
+- [Gateway](./modules/gateway.md) — 网关管理与 Agent 生命周期
+- [平台核心](./modules/platform.md) — Organizations、Boards、Tasks、Approvals
 
-- [Docs style guide](./style-guide.md)
+## 参考
+
+- [配置参考](./reference/configuration.md)
+- [认证](./reference/authentication.md)
+- [API 约定](./reference/api.md)
+- [安全](./reference/security.md)
+- [OpenClaw 基线配置](./reference/openclaw-baseline-config.md)
+
+## 其他
+
+- [安装器平台支持](./installer-support.md)
+- [文档风格指南](./style-guide.md)
+- [每 PR 一个迁移](./policy/one-migration-per-pr.md)

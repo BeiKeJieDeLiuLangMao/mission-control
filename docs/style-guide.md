@@ -1,17 +1,17 @@
-# Docs style guide
+# 文档风格指南
 
-## Principles
+## 原则
 
-- **Be concrete.** Prefer commands, examples, and “expected output” over prose.
-- **Don’t invent behavior.** If unsure, link to the source file and mark it as “verify”.
-- **Optimize for scanning.** Short sections, bullets, and tables.
-- **Call out risk.** Anything destructive or security-sensitive should be labeled clearly.
+- **具体明确。** 优先使用命令、示例和"预期输出"，而非大段描述。
+- **不要凭空臆造行为。** 如果不确定，链接到源文件并标记为 "verify"。
+- **方便快速浏览。** 使用简短章节、列表和表格。
+- **标注风险。** 任何具有破坏性或安全敏感的操作都应明确标注。
 
-## Markdown conventions
+## Markdown 规范
 
-- Use sentence-case headings.
-- Prefer fenced code blocks with a language (`bash`, `yaml`, `json`).
-- For warnings/notes, use simple callouts:
+- 标题使用句首大写（sentence-case）。
+- 优先使用带语言标识的围栏代码块（`bash`、`yaml`、`json`）。
+- 对于警告/注意事项，使用简单的 callout 格式：
 
 ```md
 > **Note**
@@ -21,19 +21,19 @@
 > ...
 ```
 
-## Common templates
+## 常用模板
 
-### Procedure
+### 操作步骤
 
-1. Prereqs
-2. Steps
-3. Verify
-4. Troubleshooting
+1. 前置条件
+2. 执行步骤
+3. 验证
+4. 故障排查
 
-### Config reference entry
+### 配置参考条目
 
-- **Name**
-- **Where set** (`.env`, env var, compose)
-- **Default**
-- **Example**
-- **Notes / pitfalls**
+- **名称**
+- **设置位置**（`.env`、环境变量、compose）
+- **默认值**
+- **示例**
+- **注意事项 / 常见陷阱**

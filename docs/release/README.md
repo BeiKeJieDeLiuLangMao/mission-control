@@ -1,62 +1,62 @@
-# Release checklist
+# 发布检查清单
 
-This is a lightweight, operator-friendly checklist for releasing Mission Control.
+这是一份轻量级、面向运维人员的 Mission Control 发布检查清单。
 
-> Goal: **no data loss** and **near-zero (ideally zero) user-visible downtime**.
+> 目标：**不丢失数据**，且**接近零（理想情况下零）用户可见停机时间**。
 
-## Before you release
+## 发布前
 
-- [ ] Confirm the target version/commit SHA.
-- [ ] Review merged PRs since last release (especially DB schema/auth changes).
-- [ ] Ensure CI is green on the target SHA.
-- [ ] Confirm you have:
-  - [ ] access to the host(s)
-  - [ ] access to Postgres backups (or snapshots)
-  - [ ] a rollback plan
+- [ ] 确认目标版本/commit SHA。
+- [ ] 审查自上次发布以来合并的 PR（特别关注数据库 schema/认证变更）。
+- [ ] 确保目标 SHA 的 CI 全部通过。
+- [ ] 确认你具备以下条件：
+  - [ ] 主机访问权限
+  - [ ] Postgres 备份（或快照）访问权限
+  - [ ] 回滚方案
 
-## Database safety
+## 数据库安全
 
-- [ ] Verify migrations are **backward compatible** with the current running app (if doing rolling deploys).
-- [ ] Take a backup / snapshot.
-- [ ] If migrations are risky or not backward compatible, schedule a maintenance window.
+- [ ] 验证迁移与当前运行的应用**向后兼容**（如果执行滚动部署）。
+- [ ] 执行备份/快照。
+- [ ] 如果迁移有风险或不向后兼容，安排维护窗口。
 
-## Deploy (Docker Compose)
+## 部署 (Docker Compose)
 
-- [ ] Pull / build the new images (or update the repo checkout).
-- [ ] Apply migrations (if you run them manually):
+- [ ] 拉取/构建新镜像（或更新仓库检出）。
+- [ ] 应用迁移（如果手动运行）：
 
 ```bash
-# example: if running backend locally on the host
+# 示例：如果在宿主机上本地运行 backend
 cd backend
 uv run alembic upgrade head
 ```
 
-- [ ] Restart services with minimal disruption:
+- [ ] 以最小中断重启服务：
 
 ```bash
 docker compose -f compose.yml --env-file .env up -d --build
 ```
 
-## Post-deploy verification
+## 部署后验证
 
-- [ ] Backend health: `GET /healthz` returns 200
-- [ ] Backend readiness: `GET /readyz` returns 200
-- [ ] Frontend loads (no console spam)
-- [ ] Login works (local/clerk mode)
-- [ ] Core flows work end-to-end:
-  - [ ] View board
-  - [ ] Create/update a task
-  - [ ] Post a comment
-  - [ ] Heartbeat check-in succeeds
+- [ ] Backend 健康检查：`GET /healthz` 返回 200
+- [ ] Backend 就绪检查：`GET /readyz` 返回 200
+- [ ] 前端正常加载（控制台无大量报错）
+- [ ] 登录功能正常（local/clerk 模式）
+- [ ] 核心流程端到端可用：
+  - [ ] 查看看板
+  - [ ] 创建/更新任务
+  - [ ] 发表评论
+  - [ ] Heartbeat 签到成功
 
-## Rollback (if needed)
+## 回滚（如需要）
 
-- [ ] Roll back the app version (compose / images).
-- [ ] If migrations were applied and are not reversible, rollbacks may require a DB restore.
+- [ ] 回滚应用版本（compose / 镜像）。
+- [ ] 如果已应用不可逆的迁移，回滚可能需要恢复数据库。
 
-## Notes to keep this honest
+## 保持清单有效的注意事项
 
-- If you add a new operational dependency (e.g., redis), update:
-  - `README.md` (overview + quickstart)
+- 如果新增运维依赖（例如 Redis），请更新：
+  - `README.md`（概述 + 快速开始）
   - `docs/deployment/README.md`
-  - this checklist
+  - 本检查清单

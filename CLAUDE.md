@@ -2,11 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **渐进式披露**: 本文件是项目地图 (Layer 1)。处理具体模块时，先读 `docs/modules/` 对应文档 (Layer 2)，再读代码 (Layer 3)。
+
 ## 项目概述
 
-OpenClaw Mission Control 是一个用于运营和管理 OpenClaw 的统一平台。这是一个全栈应用:
+OpenClaw Mission Control 是一个用于运营和管理 OpenClaw/Claude Code 的统一平台。这是一个全栈应用:
 - **Backend**: FastAPI 服务 (`backend/`),使用 SQLAlchemy + Alembic
 - **Frontend**: Next.js 应用 (`frontend/`),使用 TypeScript + React
+- **Adapters**: AI 工具集成适配器 (`adapters/`),将 Claude Code 和 OpenClaw 连接到 Memory 系统
+  - `adapters/claude-code/` — Shell hooks (UserPromptSubmit 召回 + Stop 存储)
+  - `adapters/openclaw/` — TypeScript 插件 (before_agent_start 召回 + agent_end 存储)
 - 前后端通过 REST API 通信,前端 API 客户端由 orval 自动生成
 
 ## 核心架构
@@ -16,11 +21,12 @@ OpenClaw Mission Control 是一个用于运营和管理 OpenClaw 的统一平台
 backend/
 ├── app/
 │   ├── api/           # API 路由模块 (按功能领域组织)
+│   │   └── memory/    # Memory API (adapter_* / frontend_* / internal_*)
 │   ├── core/          # 核心功能 (认证、配置、错误处理、日志、限流)
 │   ├── db/            # 数据库会话和连接管理
 │   ├── models/        # SQLAlchemy ORM 模型
 │   ├── schemas/       # Pydantic 请求/响应模式
-│   ├── memory/        # Memory 模块 (从 mem0 迁移, 详见下方)
+│   ├── memory/        # Memory 模块 (core/providers/ailearn 三层)
 │   └── services/      # 业务逻辑层
 ├── migrations/        # Alembic 数据库迁移
 ├── templates/         # 后端提供的模板 (用于 gateway 流程)
@@ -45,10 +51,7 @@ frontend/
 - **local**: 共享 bearer token 模式,用于自托管
 - **clerk**: Clerk JWT 模式
 
-认证逻辑在 `backend/app/core/auth.py` 和 `frontend/src/auth/` 中实现。
-
 ### 限流系统
-支持两种限流后端 (`RATE_LIMIT_BACKEND`):
 - **memory**: 内存限流 (默认)
 - **redis**: Redis 限流 (需要 `RATE_LIMIT_REDIS_URL`)
 
@@ -82,51 +85,31 @@ make format-check       # 检查格式 (不修改文件)
 ```
 
 ### 构建和运行
-```bash
-# Docker 方式 (推荐用于生产)
-docker compose -f compose.yml --env-file .env up -d --build
 
-# 本地开发模式 (快速迭代)
-docker compose -f compose.yml --env-file .env up -d db
-cd backend && uv run uvicorn app.main:app --reload --port 8000
-cd frontend && npm run dev
-
-# 前端构建
-make frontend-build    # 或: cd frontend && npm run build
-```
-
-### MC 自用 Mac 开机自启 (launchd)
-
-> 以下为本地 MC 开发环境的 launchd 配置，适用于非 Docker 模式。
-> 配置文件在 `~/Library/LaunchAgents/`，登录后自动启动前后端服务。
-
-| 服务 | plist 文件 | 端口 |
-|---|---|---|
-| Backend (FastAPI) | `ai.openclaw.mc.backend.plist` | 8000 |
-| Frontend (Next.js) | `ai.openclaw.mc.frontend.plist` | 3000 |
+本项目通过 **launchd** 管理前后端服务 (Mac 登录后自动启动):
 
 ```bash
 # 查看服务状态
 launchctl list | grep ai.openclaw.mc
 
-# 重新加载服务 (修改 plist 后需执行)
-launchctl unload ~/Library/LaunchAgents/ai.openclaw.mc.backend.plist
-launchctl unload ~/Library/LaunchAgents/ai.openclaw.mc.frontend.plist
-launchctl load ~/Library/LaunchAgents/ai.openclaw.mc.backend.plist
-launchctl load ~/Library/LaunchAgents/ai.openclaw.mc.frontend.plist
+# 重启服务
+launchctl kickstart -k gui/$(id -u)/ai.openclaw.mc.backend
+launchctl kickstart -k gui/$(id -u)/ai.openclaw.mc.frontend
 
 # 查看日志
-cat ~/.openclaw/logs/mc-backend.log
-cat ~/.openclaw/logs/mc-backend-error.log
-cat ~/.openclaw/logs/mc-frontend.log
-cat ~/.openclaw/logs/mc-frontend-error.log
+tail -f ~/.openclaw/logs/mc-backend.log
+tail -f ~/.openclaw/logs/mc-frontend.log
 ```
 
-> 注意：LaunchAgents 在**用户登录后**启动，非机器开机。如需开机即启动需用 LaunchDaemons。
+| 服务 | plist | 端口 |
+|---|---|---|
+| Backend (FastAPI) | `~/Library/LaunchAgents/ai.openclaw.mc.backend.plist` | 8000 |
+| Frontend (Next.js) | `~/Library/LaunchAgents/ai.openclaw.mc.frontend.plist` | 3000 |
+
+Docker 方式和手动启动见 `docs/deployment/README.md`。
 
 ### API 客户端生成
 ```bash
-# 修改后端 API 后,重新生成前端 API 客户端
 make api-gen           # 后端必须运行在 127.0.0.1:8000
 ```
 
@@ -174,114 +157,62 @@ make backend-migration-check   # 验证迁移图和可逆性
   - `AUTH_MODE=local` 时,必须设置非占位符的 `LOCAL_AUTH_TOKEN` (最少 50 字符)
   - `BASE_URL` 必须匹配公共后端源 (如果不是 `http://localhost:8000`)
   - `NEXT_PUBLIC_API_URL=auto` 会自动解析为当前主机的 8000 端口
-
-### Memory 模块环境变量
-
-配置定义在 `backend/app/memory/utils/__init__.py` 的 `get_default_memory_config()` 中。
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `QDRANT_HOST` | `127.0.0.1` | Qdrant 向量数据库地址 |
-| `QDRANT_PORT` | `6333` | Qdrant 端口 |
-| `QDRANT_COLLECTION` | `memories` | Qdrant 集合名 |
-| `LLM_PROVIDER` | `openai` | LLM 提供商 (openai/ollama/anthropic 等) |
-| `LLM_MODEL` | `gpt-4o-mini` | LLM 模型名 |
-| `LLM_API_KEY` | `env:OPENAI_API_KEY` | LLM API Key (支持 `env:` 前缀引用) |
-| `LLM_BASE_URL` | (空) | LLM API Base URL |
-| `EMBEDDER_PROVIDER` | `openai` | 嵌入模型提供商 |
-| `EMBEDDER_MODEL` | `text-embedding-3-small` | 嵌入模型名 |
-| `EMBEDDER_API_KEY` | `env:OPENAI_API_KEY` | 嵌入 API Key |
-| `EMBEDDER_BASE_URL` | (空) | 嵌入 API Base URL |
-| `NEO4J_URI` | (空) | Neo4j URI (设置后启用图谱, 如 `bolt://localhost:7687`) |
-| `NEO4J_USERNAME` | `neo4j` | Neo4j 用户名 |
-| `NEO4J_PASSWORD` | (空) | Neo4j 密码 |
-| `OLLAMA_BASE_URL` | (空) | Ollama API 地址 |
-
-### Memory 开发工作流
-
-#### 手动测试 Memory 功能
-```bash
-# 创建 turn
-curl -X POST http://localhost:8000/api/v2/turns/ \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"test","session_id":"s1","agent_id":"a1","messages":[{"role":"user","content":"我喜欢Python"}],"source":"test"}'
-
-# 等待 Worker 处理 (~10秒)
-sleep 10
-
-# 验证记忆
-curl "http://localhost:8000/api/v2/memories/search?user_id=test&query=Python"
-```
-
-#### 添加新 Provider
-1. 在 `backend/app/memory/llms/` (或 `embeddings/`, `vector_stores/`) 创建新文件 (继承 `base.py`)
-2. 在对应 `configs/` 子目录添加配置类
-3. 在 `utils/__init__.py` 的 config 构建逻辑中添加 provider 分支
+- Memory 模块环境变量 (QDRANT_*, LLM_*, NEO4J_*) 见 `docs/modules/memory.md`
 
 ### 覆盖率策略
-- 当前只对特定模块强制 100% 覆盖率:
-  - `app.core.error_handling`
-  - `app.services.mentions`
+- 当前只对特定模块强制 100% 覆盖率: `app.core.error_handling`, `app.services.mentions`
 - 运行 `make backend-coverage` 查看覆盖率报告
-- 覆盖率报告生成在 `backend/coverage.xml` 和 `backend/coverage.json`
+
+## 文档同步规范
+
+本项目采用三层渐进式文档 (CLAUDE.md → docs/ → code)，修改代码时必须同步对应文档：
+
+1. **目录结构变更** → 更新 CLAUDE.md 的 Backend/Frontend 结构树
+2. **新增/重构模块** → 更新 `docs/modules/` 对应文档的架构图和关键文件表
+3. **新增 API 端点** → 更新 `docs/modules/` 中的 API 路由映射表
+4. **环境变量变更** → 更新 `docs/modules/` 中的环境变量表 + `.env.example`
+5. **新增测试方法** → 更新 `docs/testing/README.md` 或对应 Skill
+6. **数据库 Model 变更** → 更新 `docs/modules/database.md` 的 Model 表
+
+> 原则: 代码 PR 中如果涉及以上变更，docs 更新应包含在同一个 PR 中。
 
 ## Git 工作流
 
 ### Conventional Commits
-遵循项目的 commit 历史模式:
-- `feat: ...` - 新功能
-- `fix: ...` - bug 修复
-- `docs: ...` - 文档更新
-- `test(core): ...` - 测试相关 (可指定作用域)
-- `refactor: ...` - 代码重构
+- `feat: ...` 新功能 | `fix: ...` bug 修复 | `docs: ...` 文档 | `refactor: ...` 重构 | `test(scope): ...` 测试
 
-### Pull Request 指南
-- 保持 PR 专注且基于最新的 `master` 分支
-- 包含以下信息:
-  - 变更内容和原因
-  - 测试证据 (`make check` 或相关命令输出)
-  - 关联的 issue
-  - UI 或工作流变更时的截图/日志
+## 功能模块 (按需深入)
 
-## 重要路径和文件
+处理特定模块时，先读对应文档获取上下文，再读代码。
+
+| 模块 | 简述 | 详情 | 测试 Skill |
+|------|------|------|-----------|
+| Memory | AI 持久化记忆 (core/providers/ailearn) | `docs/modules/memory.md` | `/memory-e2e-testing` |
+| Adapters | Claude Code hooks + OpenClaw 插件 | `docs/modules/adapters.md` | `/claude-code-plugin-testing` |
+| Database | PostgreSQL + Qdrant + Neo4j | `docs/modules/database.md` | - |
+| Gateway | 网关管理与 Agent 生命周期 | `docs/modules/gateway.md` | - |
+| Platform | Organizations/Boards/Tasks/Approvals | `docs/modules/platform.md` | - |
+| Auth | local token / Clerk JWT | `docs/reference/authentication.md` | - |
+| API | REST API 设计与约定 | `docs/reference/api.md` | - |
+| Testing | pytest + vitest + E2E | `docs/testing/README.md` | `/mission-control-e2e-testing` |
+| Deployment | Docker + systemd + launchd | `docs/deployment/README.md` | - |
+| Operations | 健康检查、备份、限流 | `docs/operations/README.md` | - |
+| Security | Headers, HMAC, 限流 | `docs/reference/security.md` | - |
+
+## 重要路径
 
 ### 配置文件
-- `backend/pyproject.toml` - Python 项目配置和工具设置
-- `frontend/package.json` - Node.js 依赖和脚本
+- `backend/pyproject.toml` - Python 项目配置
+- `frontend/package.json` - Node.js 依赖
 - `compose.yml` - Docker Compose 配置
 - `.env.example` - 环境变量模板
 
-### 关键代码文件
+### 关键代码入口
 - `backend/app/main.py` - FastAPI 应用入口和路由注册
 - `backend/app/core/config.py` - 配置管理 (Pydantic Settings)
 - `backend/app/core/auth.py` - 认证逻辑
 - `backend/app/core/error_handling.py` - 统一错误处理
 - `frontend/src/proxy.ts` - API 代理配置
-
-### Memory 模块关键文件
-- `backend/app/memory/core/engine.py` - Memory 引擎核心 (add/search/get/update/delete)
-- `backend/app/memory/core/graph_memory.py` - Neo4j 图记忆 (纯 Cypher 余弦相似度)
-- `backend/app/memory/providers/factory.py` - Provider 工厂 (LLM/Embedder/VectorStore)
-- `backend/app/memory/services/memory_worker.py` - 后台 Worker (fact extraction + graph build)
-- `backend/app/memory/services/client_factory.py` - Memory 客户端工厂 (get_memory_client)
-- `backend/app/memory/ailearn/orchestrator.py` - AI Learn 编排器
-
-### Memory API 端点 (按消费者组织)
-- `backend/app/api/memory/adapter_compat.py` - 适配器兼容路由 (v1/v2 映射)
-- `backend/app/api/memory/adapter_turns.py` - 适配器 Turn 存储
-- `backend/app/api/memory/frontend_views.py` - MC 前端记忆页面
-- `backend/app/api/memory/frontend_ailearn.py` - MC 前端 AI Learn 页面
-- `backend/app/api/memory/internal_crud.py` - 内部 Memory CRUD
-
-### 适配器 (Adapters)
-- `adapters/claude-code/` - Claude Code hooks (UserPromptSubmit 召回 + Stop 存储)
-- `adapters/openclaw/` - OpenClaw TypeScript 插件 (before_agent_start 召回 + agent_end 存储)
-
-### 文档
-- `docs/README.md` - 文档导航
-- `docs/getting-started/` - 入门指南
-- `docs/development/` - 开发指南
-- `docs/deployment/` - 部署文档
 
 ## 故障排查
 
@@ -296,173 +227,10 @@ curl "http://localhost:8000/api/v2/memories/search?user_id=test&query=Python"
 ### API 客户端生成失败
 - 确保后端运行在 `127.0.0.1:8000` (不是 localhost)
 - 检查后端健康状态: `curl http://localhost:8000/healthz`
-- 查看前端 `orval.config.ts` 配置
-
-### Memory Worker 问题
-
-Worker 在 FastAPI startup 时通过后台线程启动 (`app/main.py`)，每 5 秒轮询 pending turns。
-
-```bash
-# 查看 Worker 日志
-grep -i "memory_worker\|Fact extraction\|Turn.*process" ~/.openclaw/logs/mc-backend.log | tail -20
-
-# 检查 pending turns
-curl -s "http://localhost:8000/api/v2/turns/?user_id=yishu&limit=5" | jq '.items[] | {id: .id[:8], processing_status, source}'
-
-# 检查 memory client
-curl -s "http://localhost:8000/api/v1/memories?user_id=yishu" | jq '.total'
-```
-
-常见问题：
-- `LLM_API_KEY` 未设置 → Worker 运行但 fact extraction 全部失败
-- Qdrant 未启动 → Memory client 初始化失败
-- Neo4j 未启动 → 图谱功能自动跳过 (graceful degradation)
 
 ### Docker 构建问题
 - 完全重新构建: `docker compose -f compose.yml --env-file .env build --no-cache --pull`
-- 查看日志: `docker compose -f compose.yml --env-file .env logs -f`
 
----
-
-## Memory 模块架构
-
-### 概览
-
-Memory 模块位于 `backend/app/memory/`，提供 AI Agent 持久化记忆能力。从原 mem0 项目完整迁移而来。
-
-```
-backend/app/memory/                   # 9 个顶层包，三大分区
-├── __init__.py                       # 公共 API (导出 Memory)
-├── exceptions.py                     # 结构化异常
-│
-├── core/                             # ① 核心引擎 (做什么)
-│   ├── engine.py                     #   Memory 类 (add/search/get/update/delete)
-│   ├── base.py                       #   MemoryBase ABC
-│   ├── graph_memory.py               #   Neo4j 图记忆
-│   ├── storage.py                    #   SQLite 存储层
-│   ├── setup.py                      #   初始化
-│   └── utils.py                      #   工具函数
-│
-├── providers/                        # ② 可插拔 Providers (用什么)
-│   ├── factory.py                    #   Provider 工厂 (LLM/Embedder/VectorStore/Graph)
-│   ├── llms/                         #   21 LLM providers (Anthropic, OpenAI, DeepSeek 等)
-│   ├── embeddings/                   #   13 嵌入 providers (OpenAI, HF, Gemini, Ollama 等)
-│   ├── vector_stores/                #   27 向量存储 backends (Qdrant 为主)
-│   └── graphs/                       #   图数据库 providers (Neo4j, Neptune)
-│
-├── configs/                          #   配置定义 (被 core + providers 共用)
-│   ├── base.py, prompts.py, enums.py
-│   ├── llms/, embeddings/, vector_stores/, rerankers/
-│
-├── ailearn/                          # ③ AI Learn 管道 (怎么学)
-│   ├── orchestrator.py               #   编排器 (EnhancedAILearn)
-│   ├── observation/                  #   阶段 1: 观察 (collectors, filters, hooks, storage)
-│   ├── learning/                     #   阶段 2: 学习 (pattern_detector, skill_extractor)
-│   ├── instincts/                    #   阶段 3: 直觉 (auto_applier, decay)
-│   ├── amendment/                    #   阶段 4: 修订 (proposer)
-│   ├── evolution/                    #   阶段 5: 进化 (health_monitor, metrics)
-│   └── quality/                      #   阶段 6: 质量 (auditor, dashboard)
-│
-├── models/                           #   SQLModel (Turn, VectorMemory)
-├── schemas/                          #   Pydantic v2 API schemas
-├── client/                           #   REST 客户端 SDK
-└── services/                         #   后台服务
-    ├── memory_worker.py              #   Worker (fact extraction + graph build)
-    └── client_factory.py             #   客户端工厂 (get_memory_client)
-```
-
-### 数据流
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  插件层 (Claude Code hooks / OpenClaw TypeScript 插件)           │
-│  HTTP → POST http://localhost:8000/api/v2/turns/               │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  MC Backend (FastAPI :8000)                                      │
-│  兼容路由 → /memory/turns/ → Worker 队列                         │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-         ┌───────────────────┼───────────────────┐
-         ↓                   ↓                   ↓
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  PostgreSQL  │    │   Qdrant     │    │    Neo4j     │
-│  (SQLModel)  │    │  向量数据库   │    │   图数据库    │
-│  turns       │    │  :6333       │    │  :7687       │
-│  memories    │    │  memories    │    │  实体 + 关系  │
-│  metadata    │    │  1536 维向量  │    │              │
-└──────────────┘    └──────────────┘    └──────────────┘
-```
-
-### API 路由映射
-
-| 客户端 | 路由 | 用途 |
-|--------|------|------|
-| Claude Code hooks | `POST /api/v2/turns/` | 存储对话轮次 |
-| Claude Code hooks | `GET /api/v2/memories/search` | 召回相关记忆 |
-| OpenClaw 插件 | `POST /api/v2/turns/` | 存储对话轮次 |
-| OpenClaw 插件 | `GET /api/v2/memories/search` | 召回相关记忆 |
-| 前端 Memories 页 | `GET /api/v1/memories` | 记忆列表 |
-| 前端 Graph 页 | `GET /api/v1/graph` | 图数据 |
-| 前端 AILearn 页 | `GET /api/v1/ailearn/status` | 学习状态 |
-| 内部路由 | `/memory/turns/`, `/memory/memories/` | 原始 CRUD |
-
-### 外部依赖
-
-| 服务 | 端口 | 容器 | 用途 |
-|------|------|------|------|
-| Qdrant | 6333 | qdrant | 向量存储 |
-| Neo4j | 7687 | neo4j-mem0 | 图数据库 |
-
-> **注意**: Qdrant 和 Neo4j 不在 `compose.yml` 中，需单独运行：
-> ```bash
-> # Qdrant
-> docker run -d --name qdrant -p 6333:6333 -v qdrant_data:/qdrant/storage qdrant/qdrant
-> # Neo4j
-> docker run -d --name neo4j-mem0 -p 7687:7687 -p 7474:7474 \
->   -e NEO4J_AUTH=neo4j/mem0password neo4j:5
-> ```
-
-### AI Learn 管道
-
-AI Learn 是自主学习引擎，位于 `backend/app/memory/ailearn/enhanced.py`，通过六层管道处理观察数据：
-
-1. **Observation** (观察) → 捕获对话 turn，过滤隐私 (`observation/filters/privacy_filter.py`)
-2. **Learning** (学习) → 检测模式 (`learning/pattern_detector.py`)，提取技能 (`learning/skill_extractor.py`)
-3. **Instincts** (直觉) → 自动应用规则 (`instincts/auto_applier.py`)，衰减过期知识 (`instincts/decay.py`)
-4. **Amendment** (修订) → 提出记忆修正建议 (`amendment/proposer.py`)
-5. **Evolution** (进化) → 追踪变化 (`evolution/evolution_tracker.py`)，监控健康 (`evolution/health_monitor.py`)
-6. **Quality** (质量) → 审计质量 (`quality/auditor.py`)，展示仪表板 (`quality/dashboard.py`)
-
-API: `POST /api/v1/ailearn/start`、`GET /api/v1/ailearn/status`
-
-### 查看数据库状态
-
-```bash
-# Qdrant
-curl -s http://127.0.0.1:6333/collections | jq
-
-# Neo4j
-docker exec neo4j-mem0 cypher-shell -u neo4j -p mem0password \
-  "MATCH (n) RETURN labels(n) as label, count(*) as count ORDER BY count DESC;"
-
-# MC 后端健康检查
-curl http://localhost:8000/healthz
-```
-
-### 适配器开发说明
-
-**Claude Code 适配器** (`adapters/claude-code/`):
-- `config.sh` - 配置 (API URL, user_id, source)
-- `mem0-retrieve.sh` - UserPromptSubmit hook，搜索相关记忆注入上下文
-- `mem0-store.sh` - Stop hook，异步存储对话到 turns
-- `install.sh` / `install-project.sh` - 安装脚本，写入 `~/.claude/settings.json`
-
-**OpenClaw 适配器** (`adapters/openclaw/`):
-- `index.ts` - 插件入口 (before_agent_start 召回 + agent_end 存储)
-- `config.ts` - 配置管理
-- `providers.ts` - Provider 注册
-- `provider.ts` - 核心 Provider 实现
-- 默认 API: `http://localhost:8000`
+### Memory / 数据库问题
+- 详见 `docs/modules/memory.md` 的故障排查章节
+- 数据库检查命令见 `docs/modules/database.md`

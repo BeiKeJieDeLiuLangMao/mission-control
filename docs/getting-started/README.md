@@ -1,30 +1,30 @@
-# Getting started
+# 快速入门
 
-## What is Mission Control?
+## 什么是 Mission Control？
 
-Mission Control is the web UI and HTTP API for operating OpenClaw.
+Mission Control 是用于运营 OpenClaw 的 Web UI 和 HTTP API。
 
-It provides a control plane for boards, tasks, agents, approvals, and (optionally) gateway connections.
+它提供了一个控制平面，用于管理 boards、tasks、agents、approvals，以及（可选的）gateway 连接。
 
-## Quickstart (Docker Compose)
+## 快速开始（Docker Compose）
 
-From repo root:
+在仓库根目录执行：
 
 ```bash
 cp .env.example .env
 
-# REQUIRED when AUTH_MODE=local
-# Set LOCAL_AUTH_TOKEN to a non-placeholder value with at least 50 characters.
+# AUTH_MODE=local 时必须设置
+# 将 LOCAL_AUTH_TOKEN 设置为一个非占位符的值，至少 50 个字符。
 
 docker compose -f compose.yml --env-file .env up -d --build
 ```
 
-Open:
-- Frontend: http://localhost:3000
-- Backend health: http://localhost:8000/healthz
+打开：
+- 前端：http://localhost:3000
+- 后端健康检查：http://localhost:8000/healthz
 
-## Next steps
+## 下一步
 
-- [Authentication](../reference/authentication.md)
-- [Deployment](../deployment/README.md)
-- [Development](../development/README.md)
+- [认证](../reference/authentication.md)
+- [部署](../deployment/README.md)
+- [开发](../development/README.md)

@@ -1,132 +1,132 @@
-# Gateway Agent Provisioning and Check-In Troubleshooting
+# Gateway Agent Provisioning 与 Check-In 故障排查
 
-This guide explains how agent provisioning converges to a healthy state, and how to debug when an agent appears stuck.
+本指南说明 agent provisioning 如何收敛到健康状态，以及当 agent 看起来卡住时如何调试。
 
-## Fast Convergence Policy
+## 快速收敛策略
 
-Mission Control now uses a fast convergence policy for wake/check-in:
+Mission Control 对 wake/check-in 使用快速收敛策略：
 
-- Check-in deadline after each wake: **30 seconds**
-- Maximum wake attempts without check-in: **3**
-- If no check-in after the third attempt: agent is marked **offline** and provisioning escalation stops
+- 每次 wake 后的 check-in 截止时间: **30 秒**
+- 未收到 check-in 时的最大 wake 尝试次数: **3 次**
+- 第三次尝试后仍无 check-in: agent 被标记为 **offline**，provisioning 升级停止
 
-This applies to both gateway-main and board agents.
+此策略同时适用于 gateway-main 和 board agent。
 
-## Expected Lifecycle
+## 预期生命周期
 
-1. Mission Control provisions/updates the agent and sends wake.
-2. A delayed reconcile task is queued for the check-in deadline.
-3. Agent should call heartbeat quickly after startup/bootstrap.
-4. If heartbeat arrives:
-   - `last_seen_at` is updated
-   - wake escalation state is reset (`wake_attempts=0`, check-in deadline cleared)
-5. If heartbeat does not arrive by deadline:
-   - reconcile re-runs lifecycle (wake again)
-   - up to 3 total wake attempts
-6. If still no heartbeat after 3 attempts:
-   - agent status becomes `offline`
-   - `last_provision_error` is set
+1. Mission Control 配置/更新 agent 并发送 wake。
+2. 一个延迟的 reconcile 任务被加入队列，等待 check-in 截止时间。
+3. Agent 应在启动/bootstrap 后迅速调用 heartbeat。
+4. 如果 heartbeat 到达:
+   - `last_seen_at` 被更新
+   - wake 升级状态被重置 (`wake_attempts=0`，check-in 截止时间被清除)
+5. 如果 heartbeat 在截止时间前未到达:
+   - reconcile 重新运行生命周期 (再次 wake)
+   - 最多共 3 次 wake 尝试
+6. 如果 3 次尝试后仍无 heartbeat:
+   - agent 状态变为 `offline`
+   - `last_provision_error` 被设置
 
-## Startup Check-In Behavior
+## 启动时的 Check-In 行为
 
-Templates now explicitly require immediate first-cycle check-in:
+模板现在明确要求启动后立即进行首次 check-in：
 
-- Main agent heartbeat instructions require immediate check-in after wake/bootstrap.
-- Board lead bootstrap requires heartbeat check-in before orchestration.
-- Board worker bootstrap already included immediate check-in.
+- Main agent 的 heartbeat 指令要求在 wake/bootstrap 后立即 check-in。
+- Board lead 的 bootstrap 要求在编排之前先完成 heartbeat check-in。
+- Board worker 的 bootstrap 已包含立即 check-in。
 
-If a gateway still has older templates, run template sync and reprovision/wake.
+如果 gateway 仍使用旧版模板，请运行 template sync 并重新 provision/wake。
 
-## What You Should See in Logs
+## 日志中应看到的内容
 
-Healthy flow usually includes:
+健康流程通常包括：
 
 - `lifecycle.queue.enqueued`
-- `queue.worker.success` (for lifecycle tasks)
-- `lifecycle.reconcile.skip_not_stuck` (after heartbeat lands)
+- `queue.worker.success` (对应 lifecycle 任务)
+- `lifecycle.reconcile.skip_not_stuck` (heartbeat 到达后)
 
-If agent is not checking in:
+如果 agent 未 check-in：
 
-- `lifecycle.reconcile.deferred` (before deadline)
-- `lifecycle.reconcile.retriggered` (retry wake)
-- `lifecycle.reconcile.max_attempts_reached` (final fail-safe at attempt 3)
+- `lifecycle.reconcile.deferred` (截止时间之前)
+- `lifecycle.reconcile.retriggered` (重试 wake)
+- `lifecycle.reconcile.max_attempts_reached` (第 3 次尝试的最终安全阀)
 
-If you do not see lifecycle events at all, verify queue worker health first.
+如果完全看不到 lifecycle 事件，请先验证 queue worker 的健康状态。
 
-## Common Failure Modes
+## 常见故障模式
 
-### Wake was sent, but no check-in arrived
+### Wake 已发送，但未收到 check-in
 
-Possible causes:
+可能原因：
 
-- Agent process never started or crashed during bootstrap
-- Agent ignored startup instructions due to stale templates
-- Heartbeat call failed (network/auth/base URL mismatch)
+- Agent 进程从未启动或在 bootstrap 过程中崩溃
+- Agent 由于模板过时而忽略了启动指令
+- Heartbeat 调用失败 (网络/认证/base URL 不匹配)
 
-Actions:
+处理步骤：
 
-1. Confirm current templates were synced to gateway.
-2. Re-run provisioning/update to trigger a fresh wake.
-3. Verify agent can reach Mission Control API and send heartbeat with `X-Agent-Token`.
+1. 确认当前模板已同步到 gateway。
+2. 重新运行 provisioning/update 以触发新的 wake。
+3. 验证 agent 能访问 Mission Control API 并使用 `X-Agent-Token` 发送 heartbeat。
 
-### Agent stays provisioning/updating with no retries
+### Agent 停留在 provisioning/updating 状态且无重试
 
-Possible causes:
+可能原因：
 
-- Queue worker not running
-- Queue/Redis mismatch between API process and worker process
+- Queue worker 未运行
+- API 进程和 worker 进程之间 Queue/Redis 配置不匹配
 
-Actions:
+处理步骤：
 
-1. Verify worker process is running continuously.
-2. Verify `rq_redis_url` and `rq_queue_name` are identical for API and worker.
-3. Check worker logs for dequeue/handler errors.
+1. 验证 worker 进程持续运行中。
+2. 验证 API 和 worker 的 `rq_redis_url` 和 `rq_queue_name` 完全一致。
+3. 检查 worker 日志中的 dequeue/handler 错误。
 
-### Agent ended offline quickly
+### Agent 迅速变为 offline
 
-This is expected when no check-in is received after 3 wake attempts. The system fails fast by design.
+这是在 3 次 wake 尝试后均未收到 check-in 时的预期行为。系统设计为快速失败。
 
-Actions:
+处理步骤：
 
-1. Fix check-in path first (startup, network, token, API reachability).
-2. Re-run provisioning/update to start a new attempt cycle.
+1. 先修复 check-in 路径 (启动、网络、token、API 可达性)。
+2. 重新运行 provisioning/update 以开始新的尝试周期。
 
-## Operator Recovery Checklist
+## 运维恢复清单
 
-1. Ensure queue worker is running.
-2. Sync templates for the gateway.
-3. Trigger agent update/provision from Mission Control.
-4. Watch logs for:
+1. 确保 queue worker 正在运行。
+2. 为 gateway 同步模板。
+3. 从 Mission Control 触发 agent update/provision。
+4. 观察日志中的以下内容：
    - `lifecycle.queue.enqueued`
-   - `lifecycle.reconcile.retriggered` (if needed)
-   - heartbeat activity / `skip_not_stuck`
-5. If still failing, capture:
-   - gateway logs around bootstrap
-   - worker logs around lifecycle events
-   - agent `last_provision_error`, `wake_attempts`, `last_seen_at`
+   - `lifecycle.reconcile.retriggered` (如需要)
+   - heartbeat 活动 / `skip_not_stuck`
+5. 如仍然失败，收集以下信息：
+   - gateway 在 bootstrap 期间的日志
+   - worker 在 lifecycle 事件期间的日志
+   - agent 的 `last_provision_error`、`wake_attempts`、`last_seen_at`
 
-## Re-syncing auth tokens when Mission Control and OpenClaw have drifted
+## Mission Control 与 OpenClaw 认证 token 不同步时的重新同步
 
-Mission Control stores a hash of each agent’s token and provisions OpenClaw by writing templates (e.g. `TOOLS.md`) that include `AUTH_TOKEN`. If the token on the gateway and the backend hash drift (e.g. after a reinstall, token change, or manual edit), heartbeats can fail with 401 and the agent may appear offline.
+Mission Control 存储每个 agent token 的哈希值，并通过写入模板 (例如 `TOOLS.md`) 中包含 `AUTH_TOKEN` 来配置 OpenClaw。如果 gateway 上的 token 与后端哈希不一致 (例如重新安装、token 变更或手动编辑后)，heartbeat 可能返回 401，agent 可能显示为 offline。
 
-To re-sync:
+重新同步步骤：
 
-1. Ensure Mission Control is running (API and queue worker).
-2. Run **template sync with token rotation** so the backend issues new agent tokens and rewrites `AUTH_TOKEN` into the gateway’s agent files.
+1. 确保 Mission Control 正在运行 (API 和 queue worker)。
+2. 运行**带 token 轮换的 template sync**，使后端签发新的 agent token 并将 `AUTH_TOKEN` 重新写入 gateway 的 agent 文件。
 
-**Via API (curl):**
+**通过 API (curl):**
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/gateways/GATEWAY_ID/templates/sync?rotate_tokens=true" \
   -H "Authorization: Bearer YOUR_LOCAL_AUTH_TOKEN"
 ```
 
-Replace `GATEWAY_ID` (from the Gateways list or gateway URL in the UI) and `YOUR_LOCAL_AUTH_TOKEN` with your local auth token.
+将 `GATEWAY_ID` 替换为 Gateways 列表或 UI 中 gateway URL 中的 ID，将 `YOUR_LOCAL_AUTH_TOKEN` 替换为你的 local auth token。
 
-**Via CLI (from repo root):**
+**通过 CLI (从项目根目录):**
 
 ```bash
 cd backend && uv run python scripts/sync_gateway_templates.py --gateway-id GATEWAY_ID --rotate-tokens
 ```
 
-After a successful sync, OpenClaw agents will have new `AUTH_TOKEN` values in their workspace files; the next heartbeat or bootstrap will use the new token. If the gateway was offline, trigger a wake/update from Mission Control so agents restart and pick up the new token.
+同步成功后，OpenClaw agent 的工作区文件中将包含新的 `AUTH_TOKEN` 值；下次 heartbeat 或 bootstrap 将使用新 token。如果 gateway 处于 offline 状态，请从 Mission Control 触发 wake/update，使 agent 重启并获取新 token。

@@ -1,26 +1,26 @@
-# Installer platform support
+# 安装器平台支持
 
-This document defines current support status for `./install.sh`.
+本文档定义 `./install.sh` 当前的平台支持状态。
 
-## Support states
+## 支持状态
 
-- **Stable**: full tested path in CI and expected to work end-to-end.
-- **Scaffolded**: distro is detected and actionable install guidance is provided, but full automatic package installation is not implemented yet.
-- **Unsupported**: distro/package manager is not detected by installer.
+- **Stable**: 在 CI 中经过完整测试，预期可端到端正常运行。
+- **Scaffolded**: 发行版已被识别并提供可操作的安装指引，但完整的自动包安装尚未实现。
+- **Unsupported**: 发行版/包管理器未被安装器识别。
 
-## Current matrix
+## 当前支持矩阵
 
-| Distro family | Package manager | State | Notes |
+| 发行版系列 | 包管理器 | 状态 | 备注 |
 |---|---|---|---|
-| Debian / Ubuntu | `apt` | **Stable** | Full automatic dependency install path. |
-| Fedora / RHEL / CentOS | `dnf` / `yum` | **Scaffolded** | Detection + actionable commands present; auto-install path is TODO. |
-| openSUSE | `zypper` | **Scaffolded** | Detection + actionable commands present; auto-install path is TODO. |
-| Arch Linux | `pacman` | **Scaffolded** | Detection + actionable commands present; auto-install path is TODO. |
-| Other Linux distros | unknown | **Unsupported** | Installer exits with package-manager guidance requirement. |
-| macOS (Darwin) | Homebrew | **Stable** | Docker mode requires Docker Desktop. Local mode uses Homebrew for curl, git, make, openssl, Node.js. |
+| Debian / Ubuntu | `apt` | **Stable** | 完整的自动依赖安装路径。 |
+| Fedora / RHEL / CentOS | `dnf` / `yum` | **Scaffolded** | 已实现检测和可操作命令；自动安装路径待完成。 |
+| openSUSE | `zypper` | **Scaffolded** | 已实现检测和可操作命令；自动安装路径待完成。 |
+| Arch Linux | `pacman` | **Scaffolded** | 已实现检测和可操作命令；自动安装路径待完成。 |
+| 其他 Linux 发行版 | unknown | **Unsupported** | 安装器退出并提示需要包管理器相关指引。 |
+| macOS (Darwin) | Homebrew | **Stable** | Docker 模式需要 Docker Desktop。Local 模式通过 Homebrew 安装 curl、git、make、openssl、Node.js。 |
 
-## Guard rails
+## 防护措施
 
-- Debian/Ubuntu behavior must remain stable for every portability PR.
-- New distro support should be added behind explicit package-manager adapters and tests.
-- If a distro is scaffolded but not fully automated, installer should fail fast with actionable manual commands (not generic errors).
+- Debian/Ubuntu 的行为在每个可移植性 PR 中必须保持稳定。
+- 新增发行版支持应在显式的包管理器适配器和测试之后添加。
+- 如果某个发行版处于 scaffolded 状态但尚未完全自动化，安装器应快速失败并提供可操作的手动命令 (而非通用错误信息)。

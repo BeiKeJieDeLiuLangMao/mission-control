@@ -1,140 +1,140 @@
-# Deployment
+# 部署
 
-This section covers deploying Mission Control in self-hosted environments.
+本节介绍在自托管环境中部署 Mission Control。
 
-> **Goal**
-> A simple, reproducible deploy that preserves the Postgres volume and supports safe upgrades.
+> **目标**
+> 简单、可复现的部署方式，保留 Postgres 数据卷并支持安全升级。
 
-## Deployment mode: single host (Docker Compose)
+## 部署模式：单主机 (Docker Compose)
 
-### Prerequisites
+### 前置条件
 
 - Docker + Docker Compose v2 (`docker compose`)
-- A host where the **browser** can reach the backend URL you configure (see `NEXT_PUBLIC_API_URL` below)
+- 浏览器能够访问你配置的 backend URL 的主机（参见下方 `NEXT_PUBLIC_API_URL`）
 
-### 1) Configure environment
+### 1) 配置环境变量
 
-From repo root:
+在仓库根目录执行：
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+编辑 `.env`：
 
-- `AUTH_MODE=local` (default)
-- **Set** `LOCAL_AUTH_TOKEN` to a non-placeholder value (≥ 50 chars)
-- Ensure `BASE_URL` matches the public backend origin if it is not `http://localhost:8000`
-- Ensure `NEXT_PUBLIC_API_URL` is reachable from the browser (not a Docker-internal hostname)
+- `AUTH_MODE=local`（默认）
+- **设置** `LOCAL_AUTH_TOKEN` 为非占位符值（至少 50 个字符）
+- 如果不是 `http://localhost:8000`，确保 `BASE_URL` 与公共 backend 源匹配
+- 确保 `NEXT_PUBLIC_API_URL` 可从浏览器访问（不能是 Docker 内部主机名）
 
-Key variables (from `.env.example` / `compose.yml`):
+关键变量（来自 `.env.example` / `compose.yml`）：
 
-- Frontend: `FRONTEND_PORT` (default `3000`)
-- Backend: `BACKEND_PORT` (default `8000`)
-- Postgres: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`
+- Frontend: `FRONTEND_PORT`（默认 `3000`）
+- Backend: `BACKEND_PORT`（默认 `8000`）
+- Postgres: `POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`、`POSTGRES_PORT`
 - Backend:
-  - `DB_AUTO_MIGRATE` (default `true` in compose)
-  - `CORS_ORIGINS` (default `http://localhost:3000`)
-- Security headers (see [configuration reference](../reference/configuration.md)):
-  - `SECURITY_HEADER_X_CONTENT_TYPE_OPTIONS` (default `nosniff`)
-  - `SECURITY_HEADER_X_FRAME_OPTIONS` (default `DENY`)
-  - `SECURITY_HEADER_REFERRER_POLICY` (default `strict-origin-when-cross-origin`)
+  - `DB_AUTO_MIGRATE`（在 compose 中默认为 `true`）
+  - `CORS_ORIGINS`（默认 `http://localhost:3000`）
+- 安全 Headers（参见 [配置参考](../reference/configuration.md)）：
+  - `SECURITY_HEADER_X_CONTENT_TYPE_OPTIONS`（默认 `nosniff`）
+  - `SECURITY_HEADER_X_FRAME_OPTIONS`（默认 `DENY`）
+  - `SECURITY_HEADER_REFERRER_POLICY`（默认 `strict-origin-when-cross-origin`）
 
-### 2) Start the stack
+### 2) 启动服务栈
 
 ```bash
 docker compose -f compose.yml --env-file .env up -d --build
 ```
 
-Open:
+打开：
 
 - Frontend: `http://localhost:${FRONTEND_PORT:-3000}`
-- Backend health: `http://localhost:${BACKEND_PORT:-8000}/healthz`
+- Backend 健康检查: `http://localhost:${BACKEND_PORT:-8000}/healthz`
 
-To have containers restart on failure and after host reboot, add `restart: unless-stopped` to the `db`, `redis`, `backend`, and `frontend` services in `compose.yml`, and ensure Docker is configured to start at boot.
+如需容器在故障和主机重启后自动重启，在 `compose.yml` 中为 `db`、`redis`、`backend` 和 `frontend` 服务添加 `restart: unless-stopped`，并确保 Docker 配置为开机启动。
 
-### 3) Verify
+### 3) 验证
 
 ```bash
 curl -f "http://localhost:${BACKEND_PORT:-8000}/healthz"
 ```
 
-If the frontend loads but API calls fail, double-check:
+如果前端加载正常但 API 调用失败，请检查：
 
-- `NEXT_PUBLIC_API_URL` is set and reachable from the **browser**
-- backend CORS includes the frontend origin (`CORS_ORIGINS`)
+- `NEXT_PUBLIC_API_URL` 已设置且可从**浏览器**访问
+- Backend CORS 包含前端源（`CORS_ORIGINS`）
 
-## Database persistence
+## 数据库持久化
 
-The Compose stack uses a named volume:
+Compose 服务栈使用命名卷：
 
 - `postgres_data` → `/var/lib/postgresql/data`
 
-This means:
+这意味着：
 
-- `docker compose ... down` preserves data
-- `docker compose ... down -v` is **destructive** (deletes the DB volume)
+- `docker compose ... down` 会保留数据
+- `docker compose ... down -v` 是**破坏性操作**（会删除数据库卷）
 
-## Migrations / upgrades
+## 迁移 / 升级
 
-### Default behavior in Compose
+### Compose 中的默认行为
 
-In `compose.yml`, the backend container defaults:
+在 `compose.yml` 中，backend 容器默认：
 
 - `DB_AUTO_MIGRATE=true`
 
-So on startup the backend will attempt to run Alembic migrations automatically.
+因此启动时 backend 会自动尝试运行 Alembic 迁移。
 
-> **Warning**
-> For zero/near-zero downtime, migrations must be **backward compatible** with the currently running app if you do rolling deploys.
+> **警告**
+> 如果执行滚动部署，迁移必须与当前运行的应用**向后兼容**，以实现零/接近零的停机时间。
 
-### Safer operator pattern (manual migrations)
+### 更安全的操作模式（手动迁移）
 
-If you want more control, set `DB_AUTO_MIGRATE=false` and run migrations explicitly during deploy:
+如果你需要更多控制，设置 `DB_AUTO_MIGRATE=false` 并在部署时显式运行迁移：
 
 ```bash
 cd backend
 uv run alembic upgrade head
 ```
 
-## Container security
+## 容器安全
 
-Both the backend and frontend Docker containers run as a **non-root user** (`appuser`). This is a security hardening measure.
+Backend 和 frontend Docker 容器均以**非 root 用户**（`appuser`）运行。这是一项安全加固措施。
 
-If you bind-mount host directories into the containers, ensure the mounted paths are readable (and writable, if needed) by the container's non-root user. You can check the UID/GID with:
+如果你将宿主机目录绑定挂载到容器中，请确保挂载路径对容器内的非 root 用户可读（如需要则可写）。可以通过以下命令检查 UID/GID：
 
 ```bash
 docker compose exec backend id
 ```
 
-## Reverse proxy / TLS
+## 反向代理 / TLS
 
-Typical setup (outline):
+典型配置（概述）：
 
-- Put the frontend behind HTTPS (reverse proxy)
-- Ensure the frontend can reach the backend over the configured `NEXT_PUBLIC_API_URL`
+- 将前端置于 HTTPS 之后（反向代理）
+- 确保前端可以通过配置的 `NEXT_PUBLIC_API_URL` 访问 backend
 
-This section is intentionally minimal until we standardize a recommended proxy (Caddy/Nginx/Traefik).
+在标准化推荐代理（Caddy/Nginx/Traefik）之前，本节内容保持精简。
 
-## Run at boot (local install)
+## 开机自启（本地安装）
 
-If you installed Mission Control **without Docker** (e.g. using `install.sh` with "local" mode, or inside a VM where Docker is not used), the installer does not configure run-at-boot. You can start the stack after each reboot manually, or configure the OS to start it for you.
+如果你在**不使用 Docker** 的情况下安装了 Mission Control（例如使用 `install.sh` 的 "local" 模式，或在不使用 Docker 的 VM 中），安装程序不会配置开机自启。你可以在每次重启后手动启动服务栈，或配置操作系统自动启动。
 
 ### Linux (systemd)
 
-Use the example systemd units and instructions in [systemd/README.md](./systemd/README.md). In short:
+使用 [systemd/README.md](./systemd/README.md) 中的示例 systemd 单元文件和说明。简要步骤：
 
-1. Copy the unit files from `docs/deployment/systemd/` and replace `REPO_ROOT`, `BACKEND_PORT`, and `FRONTEND_PORT` with your paths and ports.
-2. Install the units under `~/.config/systemd/user/` (user) or `/etc/systemd/system/` (system).
-3. Enable and start the backend, frontend, and RQ worker services.
+1. 从 `docs/deployment/systemd/` 复制单元文件，将 `REPO_ROOT`、`BACKEND_PORT` 和 `FRONTEND_PORT` 替换为你的实际路径和端口。
+2. 将单元文件安装到 `~/.config/systemd/user/`（用户级）或 `/etc/systemd/system/`（系统级）。
+3. 启用并启动 backend、frontend 和 RQ worker 服务。
 
-The RQ queue worker is required for gateway lifecycle (wake/check-in) and webhook delivery; run it as a separate unit.
+RQ 队列 worker 是 gateway 生命周期（唤醒/签到）和 webhook 投递所必需的；将其作为单独的服务单元运行。
 
 ### macOS (launchd)
 
-LaunchAgents run at **user login**, not at machine boot. Use LaunchAgents so the backend, frontend, and worker run under your user and restart on failure. For true boot-time startup you would need LaunchDaemons or other configuration (not covered here).
+LaunchAgents 在**用户登录时**运行，而非机器启动时。使用 LaunchAgents 使 backend、frontend 和 worker 在你的用户下运行，并在失败时自动重启。如需真正的开机启动，需要使用 LaunchDaemons 或其他配置（此处不涉及）。
 
-1. Create a plist for each process under `~/Library/LaunchAgents/`, e.g. `com.openclaw.mission-control.backend.plist`:
+1. 在 `~/Library/LaunchAgents/` 下为每个进程创建一个 plist 文件，例如 `com.openclaw.mission-control.backend.plist`：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -170,10 +170,39 @@ LaunchAgents run at **user login**, not at machine boot. Use LaunchAgents so the
 </plist>
 ```
 
-Replace `REPO_ROOT` with the actual repo path. Ensure `uv` is on `PATH` (e.g. add `~/.local/bin` to the `PATH` in the plist). Load with:
+将 `REPO_ROOT` 替换为实际仓库路径。确保 `uv` 在 `PATH` 中（例如在 plist 的 `PATH` 中添加 `~/.local/bin`）。使用以下命令加载：
 
 ```bash
 launchctl load ~/Library/LaunchAgents/com.openclaw.mission-control.backend.plist
 ```
 
-2. Add similar plists for the frontend (`npm run start -- --hostname 0.0.0.0 --port 3000` in `REPO_ROOT/frontend`) and for the RQ worker (`uv run python ../scripts/rq worker` with `WorkingDirectory=REPO_ROOT/backend` and `ProgramArguments` pointing at `uv`, `run`, `python`, `../scripts/rq`, `worker`).
+2. 为 frontend（在 `REPO_ROOT/frontend` 中运行 `npm run start -- --hostname 0.0.0.0 --port 3000`）和 RQ worker（运行 `uv run python ../scripts/rq worker`，`WorkingDirectory=REPO_ROOT/backend`，`ProgramArguments` 指向 `uv`、`run`、`python`、`../scripts/rq`、`worker`）添加类似的 plist 文件。
+
+## macOS launchd (MC 本地开发)
+
+> 以下为本项目自用的 launchd 配置，适用于非 Docker 模式。
+> 配置文件在 `~/Library/LaunchAgents/`，登录后自动启动前后端服务。
+
+| 服务 | plist 文件 | 端口 |
+|---|---|---|
+| Backend (FastAPI) | `ai.openclaw.mc.backend.plist` | 8000 |
+| Frontend (Next.js) | `ai.openclaw.mc.frontend.plist` | 3000 |
+
+```bash
+# 查看服务状态
+launchctl list | grep ai.openclaw.mc
+
+# 重新加载服务 (修改 plist 后需执行)
+launchctl unload ~/Library/LaunchAgents/ai.openclaw.mc.backend.plist
+launchctl unload ~/Library/LaunchAgents/ai.openclaw.mc.frontend.plist
+launchctl load ~/Library/LaunchAgents/ai.openclaw.mc.backend.plist
+launchctl load ~/Library/LaunchAgents/ai.openclaw.mc.frontend.plist
+
+# 查看日志
+cat ~/.openclaw/logs/mc-backend.log
+cat ~/.openclaw/logs/mc-backend-error.log
+cat ~/.openclaw/logs/mc-frontend.log
+cat ~/.openclaw/logs/mc-frontend-error.log
+```
+
+> 注意：LaunchAgents 在**用户登录后**启动，非机器开机。如需开机即启动需用 LaunchDaemons。

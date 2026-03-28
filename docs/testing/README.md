@@ -1,49 +1,49 @@
-# Testing
+# 测试
 
-This guide describes how to run Mission Control tests locally.
+本指南介绍如何在本地运行 Mission Control 测试。
 
-## Quick start (repo root)
+## 快速开始（仓库根目录）
 
 ```bash
 make setup
 make check
 ```
 
-`make check` is the closest thing to “CI parity”:
+`make check` 是最接近 CI 的本地检查：
 
-- backend: lint + typecheck + unit tests (with scoped coverage gate)
-- frontend: lint + typecheck + unit tests (Vitest) + production build
+- backend：lint + 类型检查 + 单元测试（带作用域覆盖率门控）
+- frontend：lint + 类型检查 + 单元测试（Vitest）+ 生产构建
 
-## Backend tests
+## 后端测试
 
-From repo root:
+在仓库根目录执行：
 
 ```bash
 make backend-test
 make backend-coverage
 ```
 
-Or from `backend/`:
+或在 `backend/` 目录下：
 
 ```bash
 cd backend
 uv run pytest
 ```
 
-Notes:
+注意事项：
 
-- Some tests may require a running Postgres (see root `compose.yml`).
-- `make backend-coverage` enforces a strict coverage gate on a scoped set of modules.
+- 部分测试可能需要运行中的 Postgres（参见根目录 `compose.yml`）。
+- `make backend-coverage` 对指定模块集合强制执行严格的覆盖率门控。
 
-## Frontend tests
+## 前端测试
 
-From repo root:
+在仓库根目录执行：
 
 ```bash
 make frontend-test
 ```
 
-Or from `frontend/`:
+或在 `frontend/` 目录下：
 
 ```bash
 cd frontend
@@ -51,32 +51,59 @@ npm run test
 npm run test:watch
 ```
 
-## End-to-end (Cypress)
+## 端到端测试（Cypress）
 
-The frontend has Cypress configured in `frontend/cypress/`.
+前端在 `frontend/cypress/` 中配置了 Cypress。
 
-Typical flow:
+典型流程：
 
-1) Start the stack (or start backend + frontend separately)
-2) Run Cypress
+1) 启动整个服务栈（或分别启动 backend + frontend）
+2) 运行 Cypress
 
-Example (two terminals):
+示例（两个终端）：
 
 ```bash
-# terminal 1
+# 终端 1
 cp .env.example .env
 docker compose -f compose.yml --env-file .env up -d --build
 ```
 
 ```bash
-# terminal 2
+# 终端 2
 cd frontend
 npm run e2e
 ```
 
-Or run interactively:
+或以交互模式运行：
 
 ```bash
 cd frontend
 npm run e2e:open
 ```
+
+## Memory 端到端测试（Playwright）
+
+测试完整的 Memory 管道：OpenClaw/Claude Code -> Turn -> Worker -> Qdrant/Neo4j -> 前端展示。
+
+```bash
+cd frontend && npx playwright test e2e/memories/
+```
+
+测试文件：`frontend/e2e/memories/openclaw-mem0-e2e.spec.ts`
+
+前置条件：Backend(:8000) + Frontend(:3000) + Qdrant(:6333) + Neo4j(:7687) 已启动运行。
+
+覆盖范围：
+- Source badges（OpenClaw/Claude Code）、memory_type badges（fact/summary）
+- Source 和 Agent 筛选过滤
+- Memory 详情对话框及 Turn 关联（session、status、messages）
+- Graph 可视化、搜索、关系过滤
+
+## 覆盖率策略
+
+当前只对特定模块强制 100% 覆盖率，通过 `make backend-coverage` 执行:
+
+- `app.core.error_handling`
+- `app.services.mentions`
+
+详见根目录 `Makefile` 中的 `backend-coverage` target。
