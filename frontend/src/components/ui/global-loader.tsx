@@ -1,0 +1,41 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useIsFetching, useIsMutating } from "@tanstack/react-query";
+
+export function GlobalLoader() {
+  const fetchingCount = useIsFetching({
+    predicate: (query) =>
+      query.state.fetchStatus === "fetching" && query.state.data === undefined,
+  });
+  const mutatingCount = useIsMutating();
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const visible = mounted && fetchingCount + mutatingCount > 0;
+
+  return (
+    <div
+      data-cy="global-loader"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[120] h-1"
+      aria-hidden
+      role="status"
+      suppressHydrationWarning
+    >
+      {mounted && (
+        <>
+          <div
+            className={`h-full w-full transition-opacity duration-200 overflow-hidden bg-[var(--accent-soft)] ${visible ? "opacity-100" : "opacity-0"}`}
+            suppressHydrationWarning
+          >
+            <div className="h-full w-full animate-progress-shimmer bg-[linear-gradient(90deg,transparent_0%,var(--accent)_50%,transparent_100%)]" />
+          </div>
+          <span className="sr-only">Loading</span>
+        </>
+      )}
+    </div>
+  );
+}

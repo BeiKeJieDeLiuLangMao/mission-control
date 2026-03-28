@@ -1,0 +1,16 @@
+node_modules/
+.git/
+.hg/
+.svn/
+.next/
+.cache/
+.venv/
+__pycache__/
+dist/
+build/
+out/
+*.log
+*.zip
+*.tar.gz
+*.exe
+*.bin
