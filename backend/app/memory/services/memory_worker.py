@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.session import async_session_maker
 from app.memory.models import Turn, VectorMemory
-from app.memory.utils import get_memory_client
+from app.memory.services.client_factory import get_memory_client
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,7 @@ SETTINGS_FILE="${CLAUDE_DIR}/settings.json"
 SETTINGS_BACKUP="${SETTINGS_FILE}.bak.$(date +%Y%m%d_%H%M%S)"
 
 # 插件路径
-PLUGIN_PATH="${PROJECT_ROOT}/mem0/claude-code-plugin"
+PLUGIN_PATH="${PROJECT_ROOT}/adapters/claude-code"
 
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $*"

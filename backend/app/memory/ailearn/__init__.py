@@ -1,13 +1,13 @@
 """
 Core AI Learning integration for mem0.
 
-⚠️ DEPRECATED: This module is deprecated in favor of mem0.ailearn.enhanced.EnhancedAILearn.
+⚠️ DEPRECATED: This module is deprecated in favor of mem0.ailearn.orchestrator.EnhancedAILearn.
 The enhanced version includes:
 - Turn-aware pattern detection
 - LLM-powered skill extraction
 - Cross-session analysis
 
-Use `from app.memory.ailearn.enhanced import EnhancedAILearn, enable_enhanced_ailearn` instead.
+Use `from app.memory.ailearn.orchestrator import EnhancedAILearn, enable_enhanced_ailearn` instead.
 
 This module is kept for backward compatibility and will be removed in a future version.
 
@@ -21,16 +21,16 @@ import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..observation import (
+from .observation import (
     MemoryObservationHook,
     FileObservationStore,
     ProjectDetector,
     enable_observation,
 )
-from ..learning import PatternDetector, SkillExtractor
-from ..evolution import HealthMonitor, MetricsCollector, EvolutionTracker
-from ..amendment import AmendmentProposer
-from ..instincts import InstinctRegistry, InstinctApplier
+from .learning import PatternDetector, SkillExtractor
+from .evolution import HealthMonitor, MetricsCollector, EvolutionTracker
+from .amendment import AmendmentProposer
+from .instincts import InstinctRegistry, InstinctApplier
 
 
 class Mem0AILearn:

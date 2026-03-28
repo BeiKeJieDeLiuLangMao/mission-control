@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/yishu.cy/IdeaProjects/openclaw-team-workspace/mem0/claude-code-plugin/mem0-retrieve.sh",
-            "timeout": 1
+            "command": "bash /Users/yishu.cy/IdeaProjects/openclaw-mission-control/adapters/claude-code/mem0-retrieve.sh",
+            "timeout": 30
           }
         ]
       }
@@ -18,8 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/yishu.cy/IdeaProjects/openclaw-team-workspace/mem0/claude-code-plugin/mem0-store.sh",
-            "timeout": 1,
+            "command": "bash /Users/yishu.cy/IdeaProjects/openclaw-mission-control/adapters/claude-code/mem0-store.sh",
+            "timeout": 60,
             "async": true
           }
         ]

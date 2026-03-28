@@ -8,10 +8,10 @@ set -euo pipefail
 # 配置
 # ============================================
 
-API_URL="${MEM0_API_URL:-http://localhost:8765}"
-PROJECT_DIR="/Users/yishu.cy/IdeaProjects/openclaw-team-workspace"
-PLUGIN_DIR="$PROJECT_DIR/mem0/claude-code-plugin"
-USER_ID="openclaw-team-workspace"
+API_URL="${MEM0_API_URL:-http://localhost:8000}"
+PROJECT_DIR="/Users/yishu.cy/IdeaProjects/openclaw-mission-control"
+PLUGIN_DIR="$PROJECT_DIR/adapters/claude-code"
+USER_ID="yishu"
 
 # 颜色输出
 RED='\033[0;31m'

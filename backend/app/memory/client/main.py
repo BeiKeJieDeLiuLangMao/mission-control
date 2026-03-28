@@ -10,8 +10,8 @@ import requests
 from app.memory.client.project import AsyncProject, Project
 from app.memory.client.utils import api_error_handler
 # Exception classes are referenced in docstrings only
-from app.memory.memory.setup import get_user_id, setup_config
-from app.memory.memory.telemetry import capture_client_event
+from app.memory.core.setup import get_user_id, setup_config
+from app.memory.core.telemetry import capture_client_event
 
 logger = logging.getLogger(__name__)
 

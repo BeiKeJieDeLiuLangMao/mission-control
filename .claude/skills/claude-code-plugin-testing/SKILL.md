@@ -1,7 +1,7 @@
 ---
 name: claude-code-plugin-testing
 description: Claude Code plugin integration testing via CLI hooks against MC backend
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Claude Code Plugin Testing
@@ -97,7 +97,30 @@ curl -s "http://localhost:8000/api/v2/memories/?user_id=yishu&limit=10" | \
   jq '.items[] | {content: .content[:60], memory_type: .memory_type, source: .source}'
 ```
 
-### Phase 5: 前端验证
+### Phase 5: 搜索质量验证
+
+```bash
+# 语义搜索：用不同表述查询之前存储的内容
+curl -s "http://localhost:8000/api/v2/memories/search?query=编辑器偏好&user_id=yishu&limit=3" | \
+  jq '.items[] | {content: .content[:60], score}'
+
+# 验证: score > 0.5 表示语义相关
+```
+
+### Phase 6: Worker 处理状态验证
+
+```bash
+# 轮询等待 Worker 完成处理
+for i in $(seq 1 12); do
+  STATUS=$(curl -s "http://localhost:8000/api/v2/turns/?user_id=yishu&limit=1" | \
+    jq -r '.items[0].processing_status // "unknown"')
+  echo "[$i] status: $STATUS"
+  [[ "$STATUS" == "completed" ]] && echo "✓ Worker 处理完成" && break
+  sleep 5
+done
+```
+
+### Phase 7: 前端验证
 
 ```bash
 open http://localhost:3000/memories
@@ -118,11 +141,19 @@ open http://localhost:3000/memories
 
 ## 故障排查
 
+### Hook timeout 说明
+
+项目级 `.claude/settings.json` 中 hook timeout 应设为：
+- **UserPromptSubmit (retrieve)**: 30 秒 (需等待向量搜索)
+- **Stop (store)**: 60 秒 (异步，需完成 turn 写入)
+
+timeout=1 会导致 hook 被提前终止。
+
 ### Hook 未触发
 ```bash
 # 手动测试 hook 脚本
 echo '{"message":{"role":"user","content":"测试"}}' | \
-  bash /path/to/openclaw-mission-control/adapters/claude-code/mem0-retrieve.sh
+  bash adapters/claude-code/mem0-retrieve.sh
 ```
 
 ### API 连接失败

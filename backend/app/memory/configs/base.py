@@ -3,10 +3,10 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from app.memory.embeddings.configs import EmbedderConfig
-from app.memory.graphs.configs import GraphStoreConfig
-from app.memory.llms.configs import LlmConfig
-from app.memory.vector_stores.configs import VectorStoreConfig
+from app.memory.providers.embeddings.configs import EmbedderConfig
+from app.memory.providers.graphs.configs import GraphStoreConfig
+from app.memory.providers.llms.configs import LlmConfig
+from app.memory.providers.vector_stores.configs import VectorStoreConfig
 from app.memory.configs.rerankers.config import RerankerConfig
 
 # Set up the directory path

@@ -8,6 +8,6 @@ This package provides AI agent persistent memory capabilities including:
 - LLM integration (OpenAI, Ollama)
 """
 
-from app.memory.memory.main import Memory
+from app.memory.core.engine import Memory
 
 __all__ = ["Memory"]

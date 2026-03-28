@@ -1,7 +1,7 @@
 ---
 name: mission-control-e2e-testing
 description: E2E testing for Mission Control frontend with authentication and Playwright
-version: 2.0.0
+version: 3.0.0
 ---
 
 # Mission Control E2E Testing
@@ -94,6 +94,61 @@ const sources = await page.evaluate(() => {
 // Should show varied sources, not all "手工"
 ```
 
+## 其他页面测试模式
+
+### Dashboard
+
+```typescript
+await page.goto('http://localhost:3000/dashboard');
+await page.waitForSelector('[class*="dashboard"]', { timeout: 5000 });
+// 验证统计卡片加载
+const cards = await page.locator('[class*="stat"], [class*="card"]').count();
+expect(cards).toBeGreaterThan(0);
+```
+
+### Agents 页面
+
+```typescript
+await page.goto('http://localhost:3000/agents');
+await page.waitForTimeout(3000);
+// 验证 agent 列表
+const agents = await page.locator('table tbody tr, [class*="agent-card"]').count();
+expect(agents).toBeGreaterThanOrEqual(0);
+```
+
+### Costs 页面
+
+```typescript
+await page.goto('http://localhost:3000/costs');
+await page.waitForTimeout(3000);
+// 验证图表或数据表格
+const charts = await page.locator('canvas, svg, [class*="chart"]').count();
+expect(charts).toBeGreaterThan(0);
+```
+
+### Graph 标签页 (Memories 页内)
+
+```typescript
+// 在 /memories 页点击 Graph 标签
+await page.goto('http://localhost:3000/memories');
+await page.waitForTimeout(2000);
+const graphTab = page.getByText('Graph');
+if (await graphTab.isVisible()) {
+  await graphTab.click();
+  await page.waitForTimeout(2000);
+  const canvas = await page.locator('canvas').count();
+  expect(canvas).toBeGreaterThan(0);
+}
+```
+
+## 参数化
+
+```typescript
+// 使用环境变量避免硬编码
+const BASE_URL = process.env.MC_URL || 'http://localhost:3000';
+const USER_ID = process.env.TEST_USER_ID || 'yishu';
+```
+
 ---
 
-**Version**: 2.0.0 (2026-03-28)
+**Version**: 3.0.0 (2026-03-28)

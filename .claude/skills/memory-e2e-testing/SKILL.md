@@ -1,7 +1,7 @@
 ---
 name: memory-e2e-testing
-description: E2E testing for OpenClaw and Claude Code memory pipeline (Turn → Worker → Qdrant + Neo4j)
-version: 2.0.0
+description: E2E testing for OpenClaw and Claude Code memory pipeline (Turn → Worker → Qdrant + Neo4j + AI Learn)
+version: 3.0.0
 ---
 
 # Memory E2E Testing
@@ -109,7 +109,29 @@ docker exec neo4j-mem0 cypher-shell -u neo4j -p mem0password \
 curl -s "http://localhost:8000/api/v1/graph/stats" | jq
 ```
 
-### Phase 5: 前端验证
+### Phase 5: AI Learn 管道测试
+
+```bash
+# 启动 AI Learn
+curl -X POST http://localhost:8000/api/v1/ailearn/start
+sleep 15
+
+# 检查状态
+curl -s http://localhost:8000/api/v1/ailearn/status | jq '{status, patterns_detected, skills_extracted}'
+```
+
+### Phase 6: 搜索质量验证
+
+```bash
+# 语义搜索应返回相关结果
+QUERY="王五 电话"
+curl -s "http://localhost:8000/api/v2/memories/search?query=${QUERY}&user_id=yishu&limit=3" | \
+  jq '.items[] | {content: .content[:60], score}'
+
+# 验证: score > 0.5 表示语义相关
+```
+
+### Phase 7: 前端验证
 
 ```bash
 open http://localhost:3000/memories
@@ -119,7 +141,7 @@ open http://localhost:3000/memories
 - 搜索功能工作
 - Graph 标签页显示 Neo4j 数据
 
-### Phase 6: 数据比对报告
+### Phase 8: 数据比对报告
 
 ```bash
 echo "============================================"
@@ -145,15 +167,16 @@ echo -e "\n============================================"
 
 ## 验证标准
 
-| 测试项 | 验证方法 | 预期结果 |
-|--------|---------|---------|
-| OpenClaw Turn 创建 | API 查询 | source="openclaw" 的 turn |
-| Claude Code Turn 创建 | API 查询 | source="claude-code" 的 turn |
-| Memory fact 提取 | API 查询 | 新增 fact 类型记忆 |
-| Neo4j 图节点 | Cypher 查询 | 新增实体节点 |
-| Neo4j 图关系 | Cypher 查询 | 新增关系 |
-| 前端记忆列表 | 浏览器 | 正常渲染，source 正确 |
-| 前端图谱视图 | 浏览器 | canvas 元素存在 |
+| Phase | 测试项 | 通过标准 | 失败处理 |
+|-------|--------|---------|---------|
+| 1 | 服务健康 | 3 个服务均 HTTP 200 | 中止，修复基础设施 |
+| 2 | OpenClaw Turn | source="openclaw" 的 turn 存在 | 检查 adapter 配置 |
+| 3 | Claude Code Turn | source="claude-code" 的 turn 存在 | 检查 hook 路径、timeout |
+| 4 | Worker 处理 | processing_status=completed (60s 内) | 检查 LLM_API_KEY、Qdrant |
+| 5 | AI Learn | 状态 API 返回 patterns/skills | 检查 ailearn 路由 |
+| 6 | 向量搜索 | 结果非空且 score > 0.5 | 检查 embedder 配置 |
+| 7 | Neo4j 图节点 | 新增实体节点 | 检查 NEO4J_URI |
+| 8 | 前端渲染 | 记忆列表正常，source 正确 | 检查前端 API 调用 |
 
 ## 关键文件
 
