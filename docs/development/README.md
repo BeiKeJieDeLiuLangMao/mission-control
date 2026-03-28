@@ -75,5 +75,6 @@ make backend-migration-check
 
 ## 相关文档
 
+- [开发工作流规范](./workflow.md) — 五步法 + E2E 规范 + 故障排查
 - [测试](../testing/README.md)
 - [发布检查清单](../release/README.md)
