@@ -78,7 +78,8 @@ backend/app/memory/                   # 9 个顶层包
 |--------|------|------|------|
 | Claude Code hooks | `POST /api/v2/turns/` | 存储对话轮次 | `api/memory/adapter_turns.py` |
 | Claude Code hooks | `GET /api/v2/memories/search` | 召回记忆 | `api/memory/adapter_compat.py` |
-| OpenClaw 插件 | `POST /api/v2/turns/` | 存储对话轮次 | 同上 |
+| OpenClaw 插件 | `POST /api/v1/turns/` | 存储对话轮次 | `api/memory/adapter_compat.py` |
+| OpenClaw 插件 | `POST /api/v1/memories/` | 提取事实 (→ Turn) | `api/memory/adapter_compat.py` |
 | OpenClaw 插件 | `GET /api/v2/memories/search` | 召回记忆 | 同上 |
 | 前端 Memories 页 | `GET /api/v1/memories` | 记忆列表 | `api/memory/frontend_views.py` |
 | 前端 Memory 详情 | `GET /api/v2/turns/{turn_id}` | Turn 详情 | `api/memory/adapter_compat.py` |

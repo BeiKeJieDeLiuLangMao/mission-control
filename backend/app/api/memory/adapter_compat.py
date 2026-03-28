@@ -131,6 +131,45 @@ async def v1_delete_memory(memory_id: str, session: AsyncSession = Depends(get_s
     return await delete_memory(memory_id, session)
 
 
+# v1 Turn 路由（OpenClaw 插件使用 /api/v1/turns/）
+v1_turns = APIRouter(prefix="/api/v1", tags=["compat-v1-turns"])
+
+
+@v1_turns.post("/turns/", response_model=TurnStoreResponse)
+async def v1_create_turn(request: TurnStoreRequest, session: AsyncSession = Depends(get_session)):
+    return await create_turn(request, session)
+
+
+# v1 Memories POST（OpenClaw 插件使用 POST /api/v1/memories/ 来提取事实）
+@v1_memories.post("/memories/")
+async def v1_add_memory(
+    request: dict,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    OpenClaw 插件调用 POST /api/v1/memories/ 带 infer=true 来提取事实。
+    转换为 Turn 创建，由 Worker 异步处理。
+    """
+    messages = request.get("messages", [])
+    user_id = request.get("user_id", "yishu")
+    agent_id = request.get("agent_id", "")
+    metadata = request.get("metadata", {})
+
+    if not messages:
+        return {"results": []}
+
+    # 创建 Turn 让 Worker 异步处理
+    turn_request = TurnStoreRequest(
+        user_id=user_id,
+        session_id=metadata.get("session_id", "openclaw-direct"),
+        agent_id=agent_id or "unknown",
+        messages=messages if isinstance(messages, list) else [{"role": "user", "content": str(messages)}],
+        source=metadata.get("source", "openclaw"),
+    )
+    result = await create_turn(turn_request, session)
+    return {"results": [], "turn_id": result.turn_id}
+
+
 # ============================================================
 # v1 Graph 路由（前端 MemoryGraph 组件使用）
 # ============================================================
@@ -318,5 +357,6 @@ async def v1_graph_agents(
 router = APIRouter()
 router.include_router(v2_turns)
 router.include_router(v2_memories)
+router.include_router(v1_turns)
 router.include_router(v1_memories)
 router.include_router(v1_graph)
