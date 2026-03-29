@@ -58,10 +58,7 @@ class ObservationBuffer:
             self._buffer.append(observation)
 
             # Check if we need to flush
-            should_flush = (
-                len(self._buffer) >= self.flush_size or
-                self._should_flush_by_time()
-            )
+            should_flush = len(self._buffer) >= self.flush_size or self._should_flush_by_time()
 
             if should_flush:
                 await self._flush()

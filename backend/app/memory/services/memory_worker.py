@@ -10,6 +10,7 @@
 
 import asyncio
 import logging
+import re
 from collections import defaultdict
 
 from sqlalchemy import func, select
@@ -58,19 +59,68 @@ def extract_text_from_messages(messages: list[dict]) -> list[dict]:
     return result
 
 
+# --- Memory type detection patterns ---
+
+_CORRECTION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"不对|错了|不是.*?是|应该是|纠正|搞错", re.IGNORECASE),
+    re.compile(r"actually|wrong|not\s+\w+[,.]?\s*(it'?s|but|instead)", re.IGNORECASE),
+    re.compile(r"no[,.]?\s*(it|the|that|this)\s+(is|should|was)", re.IGNORECASE),
+    re.compile(r"correct(?:ion)?:?\s+", re.IGNORECASE),
+]
+
+_PROCEDURE_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"步骤|第[一二三四五六七八九十\d]+步|首先.*然后", re.IGNORECASE),
+    re.compile(r"step\s*\d|first.*then.*finally", re.IGNORECASE),
+]
+
+
+def detect_memory_type(messages: list[dict]) -> str:
+    """检测消息中的记忆类型：correction > procedure > fact。
+
+    仅检查 user 角色的消息文本。
+    """
+    user_text_parts: list[str] = []
+    for msg in messages:
+        if msg.get("role") != "user":
+            continue
+        user_text_parts.append(_safe_content_str(msg.get("content", "")))
+    user_text = "\n".join(user_text_parts)
+
+    if not user_text.strip():
+        return "fact"
+
+    # Correction 优先级最高
+    for pat in _CORRECTION_PATTERNS:
+        if pat.search(user_text):
+            return "correction"
+
+    # Procedure 次之
+    for pat in _PROCEDURE_PATTERNS:
+        if pat.search(user_text):
+            return "procedure"
+
+    return "fact"
+
+
 async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
-    """从对话中提取关键事实"""
+    """从对话中提取关键事实，自动检测 correction/procedure 类型。"""
     try:
         memory_client = get_memory_client()
         if not memory_client:
             logger.warning(f"Memory client unavailable for turn {turn.id}")
             return
 
+        # 检测记忆类型
+        mem_type = detect_memory_type(turn.messages)
+        mem_subtype = mem_type if mem_type != "fact" else None
+
         metadata = {
             "source": turn.source,
             "turn_id": str(turn.id),
-            "memory_type": "fact",
+            "memory_type": mem_type,
         }
+        if mem_subtype:
+            metadata["memory_subtype"] = mem_subtype
         if turn.agent_id:
             metadata["agent_id"] = turn.agent_id
 
@@ -102,7 +152,8 @@ async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
                 agent_id=turn.agent_id,
                 turn_id=str(turn.id),
                 content=item.get("memory", item.get("text", "")),
-                memory_type="fact",
+                memory_type=mem_type,
+                memory_subtype=mem_subtype,
                 source=turn.source,
             )
             db.add(vm)
@@ -111,7 +162,7 @@ async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
         await db.commit()
         logger.info(
             f"Fact extraction completed for turn {turn.id}, "
-            f"extracted {len(results)} facts, inserted {inserted}"
+            f"type={mem_type}, extracted {len(results)}, inserted {inserted}"
         )
 
     except Exception as e:

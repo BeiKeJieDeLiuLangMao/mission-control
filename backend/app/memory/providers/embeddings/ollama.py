@@ -14,7 +14,9 @@ except ImportError:
             subprocess.check_call([sys.executable, "-m", "pip", "install", "ollama"])
             from ollama import Client
         except subprocess.CalledProcessError:
-            print("Failed to install 'ollama'. Please install it manually using 'pip install ollama'.")
+            print(
+                "Failed to install 'ollama'. Please install it manually using 'pip install ollama'."
+            )
             sys.exit(1)
     else:
         print("The required 'ollama' library is not installed.")
@@ -61,5 +63,7 @@ class OllamaEmbedding(EmbeddingBase):
         response = self.client.embed(model=self.config.model, input=text)
         embeddings = response.get("embeddings") or []
         if not embeddings:
-            raise ValueError(f"Ollama embed() returned no embeddings for model '{self.config.model}'")
+            raise ValueError(
+                f"Ollama embed() returned no embeddings for model '{self.config.model}'"
+            )
         return embeddings[0]

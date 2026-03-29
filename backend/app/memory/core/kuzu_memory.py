@@ -12,6 +12,7 @@ try:
 except ImportError:
     raise ImportError("rank_bm25 is not installed. Please install it using pip install rank-bm25")
 
+from app.memory.providers.factory import EmbedderFactory, LlmFactory
 from app.memory.providers.graphs.tools import (
     DELETE_MEMORY_STRUCT_TOOL_GRAPH,
     DELETE_MEMORY_TOOL_GRAPH,
@@ -21,7 +22,6 @@ from app.memory.providers.graphs.tools import (
     RELATIONS_TOOL,
 )
 from app.memory.providers.graphs.utils import EXTRACT_RELATIONS_PROMPT, get_delete_messages
-from app.memory.providers.factory import EmbedderFactory, LlmFactory
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,9 @@ class MemoryGraph:
         self.embedding_dims = self.embedding_model.config.embedding_dims
 
         if self.embedding_dims is None or self.embedding_dims <= 0:
-            raise ValueError(f"embedding_dims must be a positive integer. Given: {self.embedding_dims}")
+            raise ValueError(
+                f"embedding_dims must be a positive integer. Given: {self.embedding_dims}"
+            )
 
         self.db = kuzu.Database(self.config.graph_store.config.db)
         self.graph = kuzu.Connection(self.db)
@@ -51,11 +53,19 @@ class MemoryGraph:
         self.llm_provider = "openai"
         if self.config.llm and self.config.llm.provider:
             self.llm_provider = self.config.llm.provider
-        if self.config.graph_store and self.config.graph_store.llm and self.config.graph_store.llm.provider:
+        if (
+            self.config.graph_store
+            and self.config.graph_store.llm
+            and self.config.graph_store.llm.provider
+        ):
             self.llm_provider = self.config.graph_store.llm.provider
         # Get LLM config with proper null checks
         llm_config = None
-        if self.config.graph_store and self.config.graph_store.llm and hasattr(self.config.graph_store.llm, "config"):
+        if (
+            self.config.graph_store
+            and self.config.graph_store.llm
+            and hasattr(self.config.graph_store.llm, "config")
+        ):
             llm_config = self.config.graph_store.llm.config
         elif hasattr(self.config.llm, "config"):
             llm_config = self.config.llm.config
@@ -63,11 +73,14 @@ class MemoryGraph:
 
         self.user_id = None
         # Use threshold from graph_store config, default to 0.7 for backward compatibility
-        self.threshold = self.config.graph_store.threshold if hasattr(self.config.graph_store, 'threshold') else 0.7
+        self.threshold = (
+            self.config.graph_store.threshold
+            if hasattr(self.config.graph_store, "threshold")
+            else 0.7
+        )
 
     def kuzu_create_schema(self):
-        self.kuzu_execute(
-            """
+        self.kuzu_execute("""
             CREATE NODE TABLE IF NOT EXISTS Entity(
                 id SERIAL PRIMARY KEY,
                 user_id STRING,
@@ -77,10 +90,8 @@ class MemoryGraph:
                 mentions INT64,
                 created TIMESTAMP,
                 embedding FLOAT[]);
-            """
-        )
-        self.kuzu_execute(
-            """
+            """)
+        self.kuzu_execute("""
             CREATE REL TABLE IF NOT EXISTS CONNECTED_TO(
                 FROM Entity TO Entity,
                 name STRING,
@@ -88,8 +99,7 @@ class MemoryGraph:
                 created TIMESTAMP,
                 updated TIMESTAMP
             );
-            """
-        )
+            """)
 
     def kuzu_execute(self, query, parameters=None):
         results = self.graph.execute(query, parameters)
@@ -105,7 +115,9 @@ class MemoryGraph:
         """
         entity_type_map = self._retrieve_nodes_from_data(data, filters)
         to_be_added = self._establish_nodes_relations_from_data(data, filters, entity_type_map)
-        search_output = self._search_graph_db(node_list=list(entity_type_map.keys()), filters=filters)
+        search_output = self._search_graph_db(
+            node_list=list(entity_type_map.keys()), filters=filters
+        )
         to_be_deleted = self._get_delete_entities_from_search_output(search_output, data, filters)
 
         deleted_entities = self._delete_entities(to_be_deleted, filters)
@@ -128,7 +140,9 @@ class MemoryGraph:
                 - "entities": List of related graph data based on the query.
         """
         entity_type_map = self._retrieve_nodes_from_data(query, filters)
-        search_output = self._search_graph_db(node_list=list(entity_type_map.keys()), filters=filters)
+        search_output = self._search_graph_db(
+            node_list=list(entity_type_map.keys()), filters=filters
+        )
 
         if not search_output:
             return []
@@ -143,7 +157,9 @@ class MemoryGraph:
 
         search_results = []
         for item in reranked_results:
-            search_results.append({"source": item[0], "relationship": item[1], "destination": item[2]})
+            search_results.append(
+                {"source": item[0], "relationship": item[1], "destination": item[2]}
+            )
 
         logger.info(f"Returned {len(search_results)} search results")
 
@@ -248,7 +264,10 @@ class MemoryGraph:
                 f"Error in search tool: {e}, llm_provider={self.llm_provider}, search_results={search_results}"
             )
 
-        entity_type_map = {k.lower().replace(" ", "_"): v.lower().replace(" ", "_") for k, v in entity_type_map.items()}
+        entity_type_map = {
+            k.lower().replace(" ", "_"): v.lower().replace(" ", "_")
+            for k, v in entity_type_map.items()
+        }
         logger.debug(f"Entity type map: {entity_type_map}\n search_results={search_results}")
         return entity_type_map
 
@@ -265,7 +284,9 @@ class MemoryGraph:
         if self.config.graph_store.custom_prompt:
             system_content = EXTRACT_RELATIONS_PROMPT.replace("USER_ID", user_identity)
             # Add the custom prompt line if configured
-            system_content = system_content.replace("CUSTOM_PROMPT", f"4. {self.config.graph_store.custom_prompt}")
+            system_content = system_content.replace(
+                "CUSTOM_PROMPT", f"4. {self.config.graph_store.custom_prompt}"
+            )
             messages = [
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": data},
@@ -274,7 +295,10 @@ class MemoryGraph:
             system_content = EXTRACT_RELATIONS_PROMPT.replace("USER_ID", user_identity)
             messages = [
                 {"role": "system", "content": system_content},
-                {"role": "user", "content": f"List of entities: {list(entity_type_map.keys())}. \n\nText: {data}"},
+                {
+                    "role": "user",
+                    "content": f"List of entities: {list(entity_type_map.keys())}. \n\nText: {data}",
+                },
             ]
 
         _tools = [RELATIONS_TOOL]
@@ -320,10 +344,11 @@ class MemoryGraph:
             results = []
             for match_fragment in [
                 f"(n)-[r]->(m {self.node_label} {{{node_props_str}}}) WITH n as src, r, m as dst, similarity",
-                f"(m {self.node_label} {{{node_props_str}}})-[r]->(n) WITH m as src, r, n as dst, similarity"
+                f"(m {self.node_label} {{{node_props_str}}})-[r]->(n) WITH m as src, r, n as dst, similarity",
             ]:
-                results.extend(self.kuzu_execute(
-                    f"""
+                results.extend(
+                    self.kuzu_execute(
+                        f"""
                     MATCH (n {self.node_label} {{{node_props_str}}})
                     WHERE n.embedding IS NOT NULL
                     WITH n, array_cosine_similarity(n.embedding, CAST($n_embedding,'FLOAT[{self.embedding_dims}]')) AS similarity
@@ -339,10 +364,14 @@ class MemoryGraph:
                         similarity
                     LIMIT $limit
                     """,
-                    parameters=params))
+                        parameters=params,
+                    )
+                )
 
             # Kuzu does not support sort/limit over unions. Do it manually for now.
-            result_relations.extend(sorted(results, key=lambda x: x["similarity"], reverse=True)[:limit])
+            result_relations.extend(
+                sorted(results, key=lambda x: x["similarity"], reverse=True)[:limit]
+            )
 
         return result_relations
 
@@ -453,8 +482,12 @@ class MemoryGraph:
             dest_embedding = self.embedding_model.embed(destination)
 
             # search for the nodes with the closest embeddings
-            source_node_search_result = self._search_source_node(source_embedding, filters, threshold=self.threshold)
-            destination_node_search_result = self._search_destination_node(dest_embedding, filters, threshold=self.threshold)
+            source_node_search_result = self._search_source_node(
+                source_embedding, filters, threshold=self.threshold
+            )
+            destination_node_search_result = self._search_destination_node(
+                dest_embedding, filters, threshold=self.threshold
+            )
 
             if not destination_node_search_result and source_node_search_result:
                 params = {
@@ -644,7 +677,10 @@ class MemoryGraph:
             "user_id": filters["user_id"],
             "threshold": threshold,
         }
-        where_conditions = ["source_candidate.embedding IS NOT NULL", "source_candidate.user_id = $user_id"]
+        where_conditions = [
+            "source_candidate.embedding IS NOT NULL",
+            "source_candidate.user_id = $user_id",
+        ]
         if filters.get("agent_id"):
             where_conditions.append("source_candidate.agent_id = $agent_id")
             params["agent_id"] = filters["agent_id"]
@@ -677,7 +713,10 @@ class MemoryGraph:
             "user_id": filters["user_id"],
             "threshold": threshold,
         }
-        where_conditions = ["destination_candidate.embedding IS NOT NULL", "destination_candidate.user_id = $user_id"]
+        where_conditions = [
+            "destination_candidate.embedding IS NOT NULL",
+            "destination_candidate.user_id = $user_id",
+        ]
         if filters.get("agent_id"):
             where_conditions.append("destination_candidate.agent_id = $agent_id")
             params["agent_id"] = filters["agent_id"]

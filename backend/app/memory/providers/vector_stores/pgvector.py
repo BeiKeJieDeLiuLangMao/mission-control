@@ -9,6 +9,7 @@ from pydantic import BaseModel
 try:
     from psycopg.types.json import Json
     from psycopg_pool import ConnectionPool
+
     PSYCOPG_VERSION = 3
     logger = logging.getLogger(__name__)
     logger.info("Using psycopg (psycopg3) with ConnectionPool for PostgreSQL connections")
@@ -16,6 +17,7 @@ except ImportError:
     try:
         from psycopg2.extras import Json, execute_values
         from psycopg2.pool import ThreadedConnectionPool as ConnectionPool
+
         PSYCOPG_VERSION = 2
         logger = logging.getLogger(__name__)
         logger.info("Using psycopg2 with ThreadedConnectionPool for PostgreSQL connections")
@@ -86,10 +88,13 @@ class PGVector(VectorStoreBase):
         elif connection_string:
             if sslmode:
                 # Append sslmode to connection string if provided
-                if 'sslmode=' in connection_string:
+                if "sslmode=" in connection_string:
                     # Replace existing sslmode
                     import re
-                    connection_string = re.sub(r'sslmode=[^ ]*', f'sslmode={sslmode}', connection_string)
+
+                    connection_string = re.sub(
+                        r"sslmode=[^ ]*", f"sslmode={sslmode}", connection_string
+                    )
                 else:
                     # Add sslmode to connection string
                     connection_string = f"{connection_string} sslmode={sslmode}"
@@ -97,14 +102,18 @@ class PGVector(VectorStoreBase):
             connection_string = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
             if sslmode:
                 connection_string = f"{connection_string} sslmode={sslmode}"
-        
+
         if self.connection_pool is None:
             if PSYCOPG_VERSION == 3:
                 # psycopg3 ConnectionPool
-                self.connection_pool = ConnectionPool(conninfo=connection_string, min_size=minconn, max_size=maxconn, open=True)
+                self.connection_pool = ConnectionPool(
+                    conninfo=connection_string, min_size=minconn, max_size=maxconn, open=True
+                )
             else:
                 # psycopg2 ThreadedConnectionPool
-                self.connection_pool = ConnectionPool(minconn=minconn, maxconn=maxconn, dsn=connection_string)
+                self.connection_pool = ConnectionPool(
+                    minconn=minconn, maxconn=maxconn, dsn=connection_string
+                )
 
         collections = self.list_cols()
         if collection_name not in collections:
@@ -151,34 +160,28 @@ class PGVector(VectorStoreBase):
         """
         with self._get_cursor(commit=True) as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            cur.execute(
-                f"""
+            cur.execute(f"""
                 CREATE TABLE IF NOT EXISTS {self.collection_name} (
                     id UUID PRIMARY KEY,
                     vector vector({self.embedding_model_dims}),
                     payload JSONB
                 );
-                """
-            )
+                """)
             if self.use_diskann and self.embedding_model_dims < 2000:
                 cur.execute("SELECT * FROM pg_extension WHERE extname = 'vectorscale'")
                 if cur.fetchone():
                     # Create DiskANN index if extension is installed for faster search
-                    cur.execute(
-                        f"""
+                    cur.execute(f"""
                         CREATE INDEX IF NOT EXISTS {self.collection_name}_diskann_idx
                         ON {self.collection_name}
                         USING diskann (vector);
-                        """
-                    )
+                        """)
             elif self.use_hnsw:
-                cur.execute(
-                    f"""
+                cur.execute(f"""
                     CREATE INDEX IF NOT EXISTS {self.collection_name}_hnsw_idx
                     ON {self.collection_name}
                     USING hnsw (vector vector_cosine_ops)
-                    """
-                )
+                    """)
 
     def insert(self, vectors: list[list[float]], payloads=None, ids=None) -> None:
         logger.info(f"Inserting {len(vectors)} vectors into collection {self.collection_name}")
@@ -269,7 +272,7 @@ class PGVector(VectorStoreBase):
         """
         with self._get_cursor(commit=True) as cur:
             if vector:
-               cur.execute(
+                cur.execute(
                     f"UPDATE {self.collection_name} SET vector = %s WHERE id = %s",
                     (vector, vector_id),
                 )
@@ -287,7 +290,6 @@ class PGVector(VectorStoreBase):
                         f"UPDATE {self.collection_name} SET payload = %s WHERE id = %s",
                         (Json(payload), vector_id),
                     )
-
 
     def get(self, vector_id: str) -> OutputData:
         """
@@ -317,7 +319,9 @@ class PGVector(VectorStoreBase):
             List[str]: List of collection names.
         """
         with self._get_cursor() as cur:
-            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+            cur.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+            )
             return [row[0] for row in cur.fetchall()]
 
     def delete_col(self) -> None:
@@ -347,11 +351,7 @@ class PGVector(VectorStoreBase):
             result = cur.fetchone()
         return {"name": result[0], "count": result[1], "size": result[2]}
 
-    def list(
-        self,
-        filters: Optional[dict] = None,
-        limit: Optional[int] = 100
-    ) -> List[OutputData]:
+    def list(self, filters: Optional[dict] = None, limit: Optional[int] = 100) -> List[OutputData]:
         """
         List all vectors in a collection.
 

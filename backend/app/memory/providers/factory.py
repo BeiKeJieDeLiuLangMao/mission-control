@@ -6,17 +6,17 @@ from app.memory.configs.llms.anthropic import AnthropicConfig
 from app.memory.configs.llms.azure import AzureOpenAIConfig
 from app.memory.configs.llms.base import BaseLlmConfig
 from app.memory.configs.llms.deepseek import DeepSeekConfig
-from app.memory.configs.llms.minimax import MinimaxConfig
 from app.memory.configs.llms.lmstudio import LMStudioConfig
+from app.memory.configs.llms.minimax import MinimaxConfig
 from app.memory.configs.llms.ollama import OllamaConfig
 from app.memory.configs.llms.openai import OpenAIConfig
 from app.memory.configs.llms.vllm import VllmConfig
 from app.memory.configs.rerankers.base import BaseRerankerConfig
 from app.memory.configs.rerankers.cohere import CohereRerankerConfig
+from app.memory.configs.rerankers.huggingface import HuggingFaceRerankerConfig
+from app.memory.configs.rerankers.llm import LLMRerankerConfig
 from app.memory.configs.rerankers.sentence_transformer import SentenceTransformerRerankerConfig
 from app.memory.configs.rerankers.zero_entropy import ZeroEntropyRerankerConfig
-from app.memory.configs.rerankers.llm import LLMRerankerConfig
-from app.memory.configs.rerankers.huggingface import HuggingFaceRerankerConfig
 from app.memory.providers.embeddings.mock import MockEmbeddings
 
 
@@ -40,10 +40,19 @@ class LlmFactory:
         "together": ("app.memory.providers.llms.together.TogetherLLM", BaseLlmConfig),
         "aws_bedrock": ("app.memory.providers.llms.aws_bedrock.AWSBedrockLLM", BaseLlmConfig),
         "litellm": ("app.memory.providers.llms.litellm.LiteLLM", BaseLlmConfig),
-        "azure_openai": ("app.memory.providers.llms.azure_openai.AzureOpenAILLM", AzureOpenAIConfig),
-        "openai_structured": ("app.memory.providers.llms.openai_structured.OpenAIStructuredLLM", OpenAIConfig),
+        "azure_openai": (
+            "app.memory.providers.llms.azure_openai.AzureOpenAILLM",
+            AzureOpenAIConfig,
+        ),
+        "openai_structured": (
+            "app.memory.providers.llms.openai_structured.OpenAIStructuredLLM",
+            OpenAIConfig,
+        ),
         "anthropic": ("app.memory.providers.llms.anthropic.AnthropicLLM", AnthropicConfig),
-        "azure_openai_structured": ("app.memory.providers.llms.azure_openai_structured.AzureOpenAIStructuredLLM", AzureOpenAIConfig),
+        "azure_openai_structured": (
+            "app.memory.providers.llms.azure_openai_structured.AzureOpenAIStructuredLLM",
+            AzureOpenAIConfig,
+        ),
         "gemini": ("app.memory.providers.llms.gemini.GeminiLLM", BaseLlmConfig),
         "deepseek": ("app.memory.providers.llms.deepseek.DeepSeekLLM", DeepSeekConfig),
         "minimax": ("app.memory.providers.llms.minimax.MiniMaxLLM", MinimaxConfig),
@@ -55,7 +64,9 @@ class LlmFactory:
     }
 
     @classmethod
-    def create(cls, provider_name: str, config: Optional[Union[BaseLlmConfig, Dict]] = None, **kwargs):
+    def create(
+        cls, provider_name: str, config: Optional[Union[BaseLlmConfig, Dict]] = None, **kwargs
+    ):
         """
         Create an LLM instance with the appropriate configuration.
 
@@ -242,14 +253,25 @@ class RerankerFactory:
     # Provider mappings with their config classes
     provider_to_class = {
         "cohere": ("app.memory.reranker.cohere_reranker.CohereReranker", CohereRerankerConfig),
-        "sentence_transformer": ("app.memory.reranker.sentence_transformer_reranker.SentenceTransformerReranker", SentenceTransformerRerankerConfig),
-        "zero_entropy": ("app.memory.reranker.zero_entropy_reranker.ZeroEntropyReranker", ZeroEntropyRerankerConfig),
+        "sentence_transformer": (
+            "app.memory.reranker.sentence_transformer_reranker.SentenceTransformerReranker",
+            SentenceTransformerRerankerConfig,
+        ),
+        "zero_entropy": (
+            "app.memory.reranker.zero_entropy_reranker.ZeroEntropyReranker",
+            ZeroEntropyRerankerConfig,
+        ),
         "llm_reranker": ("app.memory.reranker.llm_reranker.LLMReranker", LLMRerankerConfig),
-        "huggingface": ("app.memory.reranker.huggingface_reranker.HuggingFaceReranker", HuggingFaceRerankerConfig),
+        "huggingface": (
+            "app.memory.reranker.huggingface_reranker.HuggingFaceReranker",
+            HuggingFaceRerankerConfig,
+        ),
     }
 
     @classmethod
-    def create(cls, provider_name: str, config: Optional[Union[BaseRerankerConfig, Dict]] = None, **kwargs):
+    def create(
+        cls, provider_name: str, config: Optional[Union[BaseRerankerConfig, Dict]] = None, **kwargs
+    ):
         """
         Create a reranker instance based on the provider and configuration.
 

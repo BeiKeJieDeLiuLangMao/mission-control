@@ -206,3 +206,4 @@ cat ~/.openclaw/logs/mc-frontend-error.log
 ```
 
 > 注意：LaunchAgents 在**用户登录后**启动，非机器开机。如需开机即启动需用 LaunchDaemons。
+

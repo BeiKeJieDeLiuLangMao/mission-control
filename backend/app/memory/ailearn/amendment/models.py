@@ -2,15 +2,16 @@
 Models for amendment proposals.
 """
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-import uuid
 
 
 class AmendmentStatus(Enum):
     """Status of an amendment proposal."""
+
     PENDING = "pending"
     APPROVED = "approved"
     APPLIED = "applied"
@@ -20,6 +21,7 @@ class AmendmentStatus(Enum):
 
 class AmendmentType(Enum):
     """Types of amendments."""
+
     CONTENT_UPDATE = "content_update"  # Update memory content
     MERGE = "merge"  # Merge similar memories
     SPLIT = "split"  # Split complex memories
@@ -110,7 +112,9 @@ class AmendmentProposal:
             project_id=data["project_id"],
             agent_id=data.get("agent_id", "default"),
             status=AmendmentStatus(data["status"]),
-            applied_at=datetime.fromisoformat(data["applied_at"]) if data.get("applied_at") else None,
+            applied_at=(
+                datetime.fromisoformat(data["applied_at"]) if data.get("applied_at") else None
+            ),
             applied_version_id=data.get("applied_version_id"),
         )
 

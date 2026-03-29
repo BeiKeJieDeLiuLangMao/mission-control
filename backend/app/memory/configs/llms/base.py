@@ -19,7 +19,9 @@ class BaseLlmConfig(ABC):
         temperature: float = 0.1,
         api_key: Optional[str] = None,
         max_tokens: int = 2000,
-        top_p: Optional[float] = None,  # Default to None to avoid conflicts with providers like Bedrock
+        top_p: Optional[
+            float
+        ] = None,  # Default to None to avoid conflicts with providers like Bedrock
         top_k: int = 1,
         enable_vision: bool = False,
         vision_details: Optional[str] = "auto",
@@ -59,4 +61,6 @@ class BaseLlmConfig(ABC):
         self.top_k = top_k
         self.enable_vision = enable_vision
         self.vision_details = vision_details
-        self.http_client = httpx.Client(proxies=http_client_proxies) if http_client_proxies else None
+        self.http_client = (
+            httpx.Client(proxies=http_client_proxies) if http_client_proxies else None
+        )

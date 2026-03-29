@@ -7,9 +7,9 @@ Analyzes observations and patterns to propose memory improvements.
 import asyncio
 from typing import Any, Dict, List, Optional
 
-from .models import AmendmentProposal, AmendmentType, AmendmentStatus
 from ..learning.pattern import Pattern
 from ..observation.models import Observation, ObservationType
+from .models import AmendmentProposal, AmendmentStatus, AmendmentType
 
 
 class AmendmentProposer:

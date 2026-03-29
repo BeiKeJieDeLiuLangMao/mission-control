@@ -575,9 +575,7 @@ async def apply_invite_to_member(
         member_changed = True
 
     if invite.all_boards_read or invite.all_boards_write:
-        member.all_boards_read = (
-            member.all_boards_read or invite.all_boards_read or invite.all_boards_write
-        )
+        member.all_boards_read = member.all_boards_read or invite.all_boards_read
         member.all_boards_write = member.all_boards_write or invite.all_boards_write
         member_changed = True
         if member_changed:

@@ -165,6 +165,7 @@ make backend-migration-check   # 验证迁移图和可逆性
 - NEVER 盲搜代码; prefer 先读 `docs/modules/` 获取关键文件表
 - NEVER 计划中省略文档更新; prefer 每个计划含"文档更新"章节
 - NEVER 声称"已完成"除非 `make check` 通过
+- NEVER 对涉及 2+ 文件 / API / Model / Migration 变更的任务直接编码; prefer 先创建 `.harness/spec.md` + `.harness/contract.md`，实现后创建 `.harness/build-report.md` 自检。详见 `.claude/rules/harness-workflow.md`
 
 ## META
 

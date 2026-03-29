@@ -61,8 +61,7 @@ class SQLiteManager:
                 cur.execute("ALTER TABLE history RENAME TO history_old")
 
                 # Create the new history table with updated schema
-                cur.execute(
-                    """
+                cur.execute("""
                     CREATE TABLE history (
                         id           TEXT PRIMARY KEY,
                         memory_id    TEXT,
@@ -75,14 +74,15 @@ class SQLiteManager:
                         actor_id     TEXT,
                         role         TEXT
                     )
-                """
-                )
+                """)
 
                 # Copy data from old table to new table
                 intersecting = list(expected_cols & old_cols)
                 if intersecting:
                     cols_csv = ", ".join(intersecting)
-                    cur.execute(f"INSERT INTO history ({cols_csv}) SELECT {cols_csv} FROM history_old")
+                    cur.execute(
+                        f"INSERT INTO history ({cols_csv}) SELECT {cols_csv} FROM history_old"
+                    )
 
                 # Drop the old table
                 cur.execute("DROP TABLE history_old")
@@ -101,8 +101,7 @@ class SQLiteManager:
         with self._lock:
             try:
                 self.connection.execute("BEGIN")
-                self.connection.execute(
-                    """
+                self.connection.execute("""
                     CREATE TABLE IF NOT EXISTS history (
                         id           TEXT PRIMARY KEY,
                         memory_id    TEXT,
@@ -115,8 +114,7 @@ class SQLiteManager:
                         actor_id     TEXT,
                         role         TEXT
                     )
-                """
-                )
+                """)
                 self.connection.execute("COMMIT")
             except Exception as e:
                 self.connection.execute("ROLLBACK")

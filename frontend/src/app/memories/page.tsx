@@ -3,7 +3,23 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useCallback, useEffect } from "react";
-import { Brain, Search, Plus, Trash2, RefreshCw, Bot, Filter, ChevronDown, ChevronUp, MessageSquare, Clock, FileText, Layers, Wrench, ClipboardList } from "lucide-react";
+import {
+  Brain,
+  Search,
+  Plus,
+  Trash2,
+  RefreshCw,
+  Bot,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  Clock,
+  FileText,
+  Layers,
+  Wrench,
+  ClipboardList,
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { DashboardShell } from "@/components/templates/DashboardShell";
@@ -27,24 +43,24 @@ import { getApiBaseUrl } from "@/lib/api-base";
 // ------ Types ------
 interface MemoryItem {
   id: string;
-  content: string;  // Changed from 'memory' to 'content' to match OpenMemory API
+  content: string; // Changed from 'memory' to 'content' to match OpenMemory API
   created_at: number;
   state: string;
   app_name?: string;
   categories: string[];
-  metadata__?: Record<string, unknown>;  // Qdrant payload metadata
-  score?: number;  // For search results
-  turn_id?: string | null;  // 关联的 turn ID
-  agent_id?: string;  // 顶层 agent_id 字段
-  memory_type?: string;  // 顶层 memory_type 字段
-  source?: string;  // 顶层 source 字段（从 turns 表关联获取）
-  userId?: string;  // Qdrant payload 中的 userId 字段
-  agentId?: string;  // Qdrant payload 中的 agentId 字段
+  metadata__?: Record<string, unknown>; // Qdrant payload metadata
+  score?: number; // For search results
+  turn_id?: string | null; // 关联的 turn ID
+  agent_id?: string; // 顶层 agent_id 字段
+  memory_type?: string; // 顶层 memory_type 字段
+  source?: string; // 顶层 source 字段（从 turns 表关联获取）
+  userId?: string; // Qdrant payload 中的 userId 字段
+  agentId?: string; // Qdrant payload 中的 agentId 字段
 }
 
 interface SourceInfo {
-  source_id: string;  // 来源标识: claude-code, openclaw, manual
-  label: string;  // 显示标签
+  source_id: string; // 来源标识: claude-code, openclaw, manual
+  label: string; // 显示标签
   count: number;
 }
 
@@ -89,7 +105,7 @@ interface TurnDetail {
 const fetchMemories = async (params: {
   userId?: string;
   agentId?: string;
-  source?: string;  // 按来源筛选
+  source?: string; // 按来源筛选
 }): Promise<MemoryItem[]> => {
   const url = new URL(`${getApiBaseUrl()}/api/v1/memories`);
   url.searchParams.set("user_id", params.userId ?? "yishu");
@@ -108,7 +124,7 @@ const fetchMemories = async (params: {
   items.sort((a: MemoryItem, b: MemoryItem) => {
     const timeA = new Date(a.created_at).getTime();
     const timeB = new Date(b.created_at).getTime();
-    return timeB - timeA;  // 倒序：b - a
+    return timeB - timeA; // 倒序：b - a
   });
 
   // 处理 Qdrant payload 结构
@@ -116,7 +132,11 @@ const fetchMemories = async (params: {
   // TypeScript 接口用: metadata__ (两个下划线)
   return items.map((m: MemoryItem) => {
     // API 返回的 metadata 在 m.metadata 中（一个下划线）
-    const apiMetadata = ((m as unknown) as Record<string, unknown>).metadata as Record<string, unknown> || {};
+    const apiMetadata =
+      ((m as unknown as Record<string, unknown>).metadata as Record<
+        string,
+        unknown
+      >) || {};
     return {
       ...m,
       // content 可能在顶层或 metadata.data 中
@@ -196,10 +216,10 @@ function deriveSources(memories: MemoryItem[]): SourceInfo[] {
   // 定义来源顺序和标签
   const sourceLabels: Record<string, string> = {
     "claude-code": "Claude Code",
-    "openclaw": "OpenClaw",
-    "conversation": "对话",
-    "manual": "手工",
-    "unknown": "未知",
+    openclaw: "OpenClaw",
+    conversation: "对话",
+    manual: "手工",
+    unknown: "未知",
   };
 
   return Object.entries(countMap)
@@ -210,7 +230,13 @@ function deriveSources(memories: MemoryItem[]): SourceInfo[] {
     }))
     .sort((a, b) => {
       // 按固定顺序排序
-      const order = ["claude-code", "openclaw", "conversation", "manual", "unknown"];
+      const order = [
+        "claude-code",
+        "openclaw",
+        "conversation",
+        "manual",
+        "unknown",
+      ];
       return order.indexOf(a.source_id) - order.indexOf(b.source_id);
     });
 }
@@ -225,13 +251,17 @@ function deriveStats(memories: MemoryItem[]): MemoryStats {
     by_source[src] = (by_source[src] ?? 0) + 1;
 
     // agent_id 优先使用顶层字段，其次 metadata
-    const agentId = m.agentId || String(m.agent_id || m.metadata__?.agentId || "unknown");
+    const agentId =
+      m.agentId || String(m.agent_id || m.metadata__?.agentId || "unknown");
     by_agent[agentId] = (by_agent[agentId] ?? 0) + 1;
   }
   return {
     total: memories.length,
     by_source,
-    by_agent: Object.entries(by_agent).map(([agent_id, count]) => ({ agent_id, count })),
+    by_agent: Object.entries(by_agent).map(([agent_id, count]) => ({
+      agent_id,
+      count,
+    })),
   };
 }
 
@@ -242,11 +272,14 @@ function deriveAgents(memories: MemoryItem[]): AgentInfo[] {
     // 从 metadata 中提取 agentId（API 返回的结构）
     const metadata = m.metadata__ as Record<string, unknown> | undefined;
     const agentId = String(
-      metadata?.agentId || m.agentId || m.agent_id || "unknown"
+      metadata?.agentId || m.agentId || m.agent_id || "unknown",
     );
     countMap[agentId] = (countMap[agentId] ?? 0) + 1;
   }
-  return Object.entries(countMap).map(([agent_id, count]) => ({ agent_id, count }));
+  return Object.entries(countMap).map(([agent_id, count]) => ({
+    agent_id,
+    count,
+  }));
 }
 
 const addMemory = async (params: {
@@ -280,12 +313,16 @@ const fetchTurn = async (turnId: string): Promise<TurnDetail> => {
   return res.json();
 };
 
-const fetchMemoriesByTurn = async (turnId: string, userId: string): Promise<MemoryItem[]> => {
+const fetchMemoriesByTurn = async (
+  turnId: string,
+  userId: string,
+): Promise<MemoryItem[]> => {
   const url = new URL(`${getApiBaseUrl()}/api/v2/memories/`);
   url.searchParams.set("user_id", userId);
   url.searchParams.set("turn_id", turnId);
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Failed to fetch turn memories: ${res.statusText}`);
+  if (!res.ok)
+    throw new Error(`Failed to fetch turn memories: ${res.statusText}`);
   const data = await res.json();
   return data.items || [];
 };
@@ -339,38 +376,44 @@ function StatCard({
 // 来源标签映射
 const SOURCE_LABELS: Record<string, string> = {
   "claude-code": "Claude Code",
-  "openclaw": "OpenClaw",
-  "conversation": "对话",
-  "manual": "手工",
-  "unknown": "未知",
+  openclaw: "OpenClaw",
+  conversation: "对话",
+  manual: "手工",
+  unknown: "未知",
 };
 
 // 来源对应的颜色
 const SOURCE_COLORS: Record<string, string> = {
   "claude-code": "bg-purple-100 text-purple-700 border-purple-200",
-  "openclaw": "bg-blue-100 text-blue-700 border-blue-200",
-  "conversation": "bg-green-100 text-green-700 border-green-200",
-  "manual": "bg-slate-100 text-slate-700 border-slate-200",
-  "unknown": "bg-gray-100 text-gray-700 border-gray-200",
+  openclaw: "bg-blue-100 text-blue-700 border-blue-200",
+  conversation: "bg-green-100 text-green-700 border-green-200",
+  manual: "bg-slate-100 text-slate-700 border-slate-200",
+  unknown: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
 // memory_type 标签和颜色
 const TYPE_LABELS: Record<string, string> = {
-  "fact": "事实",
-  "summary": "摘要",
+  fact: "事实",
+  summary: "摘要",
+  correction: "纠正",
+  procedure: "流程",
+  task_fact: "任务事实",
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  "fact": "bg-amber-100 text-amber-700 border-amber-200",
-  "summary": "bg-teal-100 text-teal-700 border-teal-200",
+  fact: "bg-amber-100 text-amber-700 border-amber-200",
+  summary: "bg-teal-100 text-teal-700 border-teal-200",
+  correction: "bg-red-100 text-red-700 border-red-200",
+  procedure: "bg-blue-100 text-blue-700 border-blue-200",
+  task_fact: "bg-purple-100 text-purple-700 border-purple-200",
 };
 
 // processing_status 颜色
 const STATUS_COLORS: Record<string, string> = {
-  "completed": "bg-green-100 text-green-700",
-  "pending": "bg-yellow-100 text-yellow-700",
-  "processing": "bg-blue-100 text-blue-700",
-  "failed": "bg-red-100 text-red-700",
+  completed: "bg-green-100 text-green-700",
+  pending: "bg-yellow-100 text-yellow-700",
+  processing: "bg-blue-100 text-blue-700",
+  failed: "bg-red-100 text-red-700",
 };
 
 // ------ Memory Card ------
@@ -388,7 +431,9 @@ function MemoryCard({
   const sourceLabel = SOURCE_LABELS[source] || source;
   const sourceColor = SOURCE_COLORS[source] || SOURCE_COLORS["unknown"];
   const typeLabel = memory.memory_type ? TYPE_LABELS[memory.memory_type] : null;
-  const typeColor = memory.memory_type ? (TYPE_COLORS[memory.memory_type] || "") : "";
+  const typeColor = memory.memory_type
+    ? TYPE_COLORS[memory.memory_type] || ""
+    : "";
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -413,19 +458,34 @@ function MemoryCard({
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {/* 来源 Badge */}
-            <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", sourceColor)}>
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-xs font-medium",
+                sourceColor,
+              )}
+            >
               {sourceLabel}
             </span>
             {/* memory_type Badge */}
             {typeLabel && (
-              <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", typeColor)}>
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-xs font-medium",
+                  typeColor,
+                )}
+              >
                 {typeLabel}
               </span>
             )}
             {/* Agent Badge */}
             {(() => {
-              const metadata = memory.metadata__ as Record<string, unknown> | undefined;
-              const agentId = memory.agentId || memory.agent_id || String(metadata?.agentId || "");
+              const metadata = memory.metadata__ as
+                | Record<string, unknown>
+                | undefined;
+              const agentId =
+                memory.agentId ||
+                memory.agent_id ||
+                String(metadata?.agentId || "");
               return agentId ? (
                 <Badge variant="outline" className="gap-1 text-xs">
                   <Bot className="h-3 w-3" />
@@ -483,7 +543,8 @@ function SourceFilter({
         全部
       </button>
       {sources.map((src) => {
-        const colorClass = SOURCE_COLORS[src.source_id] || SOURCE_COLORS["unknown"];
+        const colorClass =
+          SOURCE_COLORS[src.source_id] || SOURCE_COLORS["unknown"];
         return (
           <button
             key={src.source_id}
@@ -553,19 +614,29 @@ function ToolCallBlock({ block }: { block: ContentBlock }) {
   const [expanded, setExpanded] = useState(false);
 
   if (block.type === "tool_use") {
-    const inputStr = typeof block.input === "string"
-      ? block.input
-      : JSON.stringify(block.input, null, 2);
+    const inputStr =
+      typeof block.input === "string"
+        ? block.input
+        : JSON.stringify(block.input, null, 2);
     return (
       <div className="my-1 rounded border border-amber-200 bg-amber-50 p-2 text-xs">
-        <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 font-mono font-semibold text-amber-700">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1 font-mono font-semibold text-amber-700"
+        >
           <Wrench className="h-3 w-3" />
           {block.name || "unknown"}
-          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {expanded ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )}
         </button>
         {expanded && (
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-amber-600 text-[11px]">
-            {inputStr.length > 2000 ? inputStr.slice(0, 2000) + "\n...[truncated]" : inputStr}
+            {inputStr.length > 2000
+              ? inputStr.slice(0, 2000) + "\n...[truncated]"
+              : inputStr}
           </pre>
         )}
       </div>
@@ -573,17 +644,29 @@ function ToolCallBlock({ block }: { block: ContentBlock }) {
   }
 
   if (block.type === "tool_result") {
-    const resultStr = typeof block.content === "string" ? block.content : JSON.stringify(block.content);
+    const resultStr =
+      typeof block.content === "string"
+        ? block.content
+        : JSON.stringify(block.content);
     return (
       <div className="my-1 rounded border border-green-200 bg-green-50 p-2 text-xs">
-        <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 font-mono font-semibold text-green-700">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-1 font-mono font-semibold text-green-700"
+        >
           <ClipboardList className="h-3 w-3" />
           Result
-          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {expanded ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )}
         </button>
         {expanded && (
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-green-600 text-[11px]">
-            {resultStr.length > 2000 ? resultStr.slice(0, 2000) + "\n...[truncated]" : resultStr}
+            {resultStr.length > 2000
+              ? resultStr.slice(0, 2000) + "\n...[truncated]"
+              : resultStr}
           </pre>
         )}
       </div>
@@ -658,10 +741,12 @@ function MemoryDetailDialog({
     Promise.all([
       fetchTurn(memory.turn_id).catch(() => null),
       fetchMemoriesByTurn(memory.turn_id, userId).catch(() => []),
-    ]).then(([t, mems]) => {
-      setTurn(t);
-      setTurnMemories(mems);
-    }).finally(() => setTurnLoading(false));
+    ])
+      .then(([t, mems]) => {
+        setTurn(t);
+        setTurnMemories(mems);
+      })
+      .finally(() => setTurnLoading(false));
   }, [open, memory?.turn_id, userId]);
 
   if (!memory) return null;
@@ -670,7 +755,9 @@ function MemoryDetailDialog({
   const sourceLabel = SOURCE_LABELS[source] || source;
   const sourceColor = SOURCE_COLORS[source] || SOURCE_COLORS["unknown"];
   const typeLabel = memory.memory_type ? TYPE_LABELS[memory.memory_type] : null;
-  const typeColor = memory.memory_type ? (TYPE_COLORS[memory.memory_type] || "") : "";
+  const typeColor = memory.memory_type
+    ? TYPE_COLORS[memory.memory_type] || ""
+    : "";
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -700,16 +787,31 @@ function MemoryDetailDialog({
           {/* 元数据 */}
           <div className="flex flex-wrap items-center gap-2">
             {typeLabel && (
-              <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", typeColor)}>
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-xs font-medium",
+                  typeColor,
+                )}
+              >
                 {typeLabel}
               </span>
             )}
-            <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", sourceColor)}>
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-xs font-medium",
+                sourceColor,
+              )}
+            >
               {sourceLabel}
             </span>
             {(() => {
-              const metadata = memory.metadata__ as Record<string, unknown> | undefined;
-              const agentId = memory.agentId || memory.agent_id || String(metadata?.agentId || "");
+              const metadata = memory.metadata__ as
+                | Record<string, unknown>
+                | undefined;
+              const agentId =
+                memory.agentId ||
+                memory.agent_id ||
+                String(metadata?.agentId || "");
               return agentId ? (
                 <Badge variant="outline" className="gap-1 text-xs">
                   <Bot className="h-3 w-3" />
@@ -746,17 +848,29 @@ function MemoryDetailDialog({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                     <div>
                       <span className="text-slate-400">Turn ID: </span>
-                      <span className="font-mono text-slate-600">{turn.id.slice(0, 12)}...</span>
+                      <span className="font-mono text-slate-600">
+                        {turn.id.slice(0, 12)}...
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-400">状态: </span>
-                      <span className={cn("rounded px-1.5 py-0.5 font-medium", STATUS_COLORS[turn.processing_status] || "bg-slate-100 text-slate-600")}>
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.5 font-medium",
+                          STATUS_COLORS[turn.processing_status] ||
+                            "bg-slate-100 text-slate-600",
+                        )}
+                      >
                         {turn.processing_status}
                       </span>
                     </div>
                     <div>
                       <span className="text-slate-400">Session: </span>
-                      <span className="font-mono text-slate-600">{turn.session_id.length > 24 ? turn.session_id.slice(0, 24) + "..." : turn.session_id}</span>
+                      <span className="font-mono text-slate-600">
+                        {turn.session_id.length > 24
+                          ? turn.session_id.slice(0, 24) + "..."
+                          : turn.session_id}
+                      </span>
                     </div>
                     <div>
                       <span className="text-slate-400">来源: </span>
@@ -768,7 +882,9 @@ function MemoryDetailDialog({
                     </div>
                     <div>
                       <span className="text-slate-400">时间: </span>
-                      <span className="text-slate-600">{formatDate(turn.created_at)}</span>
+                      <span className="text-slate-600">
+                        {formatDate(turn.created_at)}
+                      </span>
                     </div>
                   </div>
 
@@ -781,17 +897,30 @@ function MemoryDetailDialog({
                       >
                         <MessageSquare className="h-3 w-3" />
                         消息 ({turn.messages.length})
-                        {messagesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        {messagesExpanded ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        )}
                       </button>
                       {messagesExpanded && (
                         <div className="mt-2 space-y-2">
                           {turn.messages.map((msg, i) => (
-                            <div key={i} className={cn(
-                              "rounded-lg p-3 text-xs",
-                              msg.role === "user" ? "bg-blue-50 border border-blue-100" : "bg-slate-50 border border-slate-100"
-                            )}>
+                            <div
+                              key={i}
+                              className={cn(
+                                "rounded-lg p-3 text-xs",
+                                msg.role === "user"
+                                  ? "bg-blue-50 border border-blue-100"
+                                  : "bg-slate-50 border border-slate-100",
+                              )}
+                            >
                               <span className="font-semibold text-slate-500">
-                                {msg.role === "user" ? "👤 user" : msg.role === "system" ? "⚙️ system" : "🤖 assistant"}
+                                {msg.role === "user"
+                                  ? "👤 user"
+                                  : msg.role === "system"
+                                    ? "⚙️ system"
+                                    : "🤖 assistant"}
                               </span>
                               <MessageContent content={msg.content} />
                             </div>
@@ -809,16 +938,30 @@ function MemoryDetailDialog({
                       </p>
                       <div className="space-y-1.5">
                         {siblingMemories.map((m) => {
-                          const tl = m.memory_type ? TYPE_LABELS[m.memory_type] : null;
-                          const tc = m.memory_type ? (TYPE_COLORS[m.memory_type] || "") : "";
+                          const tl = m.memory_type
+                            ? TYPE_LABELS[m.memory_type]
+                            : null;
+                          const tc = m.memory_type
+                            ? TYPE_COLORS[m.memory_type] || ""
+                            : "";
                           return (
-                            <div key={m.id} className="flex items-start gap-2 rounded-lg bg-slate-50 p-2 text-xs">
+                            <div
+                              key={m.id}
+                              className="flex items-start gap-2 rounded-lg bg-slate-50 p-2 text-xs"
+                            >
                               {tl && (
-                                <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium", tc)}>
+                                <span
+                                  className={cn(
+                                    "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+                                    tc,
+                                  )}
+                                >
                                   {tl}
                                 </span>
                               )}
-                              <span className="text-slate-600">{truncate(m.content, 120)}</span>
+                              <span className="text-slate-600">
+                                {truncate(m.content, 120)}
+                              </span>
                             </div>
                           );
                         })}
@@ -834,7 +977,13 @@ function MemoryDetailDialog({
 
           {/* 操作按钮 */}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={handleDelete} disabled={deleting} className="text-red-500 hover:text-red-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="text-red-500 hover:text-red-700"
+            >
               <Trash2 className="mr-1 h-3 w-3" />
               {deleting ? "删除中..." : "删除"}
             </Button>
@@ -876,7 +1025,11 @@ export default function MemoriesPage() {
     setError(null);
     try {
       // mem0 has no /stats or /agents endpoints; derive from memories list
-      const data = await fetchMemories({ userId, agentId: selectedAgent, source: selectedSource });
+      const data = await fetchMemories({
+        userId,
+        agentId: selectedAgent,
+        source: selectedSource,
+      });
       setMemories(data);
       setStats(deriveStats(data));
       setAgents(deriveAgents(data));
@@ -892,7 +1045,11 @@ export default function MemoriesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchMemories({ userId, agentId: selectedAgent, source: selectedSource });
+      const data = await fetchMemories({
+        userId,
+        agentId: selectedAgent,
+        source: selectedSource,
+      });
       setMemories(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load memories");
@@ -978,15 +1135,28 @@ export default function MemoriesPage() {
               <Brain className="h-6 w-6 text-blue-500" />
               <div>
                 <h1 className="text-xl font-bold text-slate-900">记忆管理</h1>
-                <p className="text-sm text-slate-500">Agent 记忆隔离 · 向量搜索</p>
+                <p className="text-sm text-slate-500">
+                  Agent 记忆隔离 · 向量搜索
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Tabs value={view} onValueChange={(v) => setView(v as "list" | "graph" | "ailearn")}>
+              <Tabs
+                value={view}
+                onValueChange={(v) =>
+                  setView(v as "list" | "graph" | "ailearn")
+                }
+              >
                 <TabsList className="h-8">
-                  <TabsTrigger value="list" className="text-xs">列表</TabsTrigger>
-                  <TabsTrigger value="graph" className="text-xs">图谱</TabsTrigger>
-                  <TabsTrigger value="ailearn" className="text-xs">AI 学习</TabsTrigger>
+                  <TabsTrigger value="list" className="text-xs">
+                    列表
+                  </TabsTrigger>
+                  <TabsTrigger value="graph" className="text-xs">
+                    图谱
+                  </TabsTrigger>
+                  <TabsTrigger value="ailearn" className="text-xs">
+                    AI 学习
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
               <Button
@@ -995,7 +1165,9 @@ export default function MemoriesPage() {
                 onClick={() => Promise.all([loadData(), loadMemories()])}
                 disabled={isLoading}
               >
-                <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                <RefreshCw
+                  className={cn("h-4 w-4", isLoading && "animate-spin")}
+                />
               </Button>
               <Button size="sm" onClick={() => setShowAddForm(!showAddForm)}>
                 <Plus className="h-4 w-4" />
@@ -1005,9 +1177,7 @@ export default function MemoriesPage() {
           </div>
 
           {/* Graph View */}
-          {view === "graph" && (
-            <MemoryGraph userId={userId} />
-          )}
+          {view === "graph" && <MemoryGraph userId={userId} />}
 
           {/* AI Learning View */}
           {view === "ailearn" && <AILearnView />}
@@ -1022,7 +1192,9 @@ export default function MemoriesPage() {
           {/* Add Memory Form */}
           {showAddForm && (
             <div className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold text-slate-700">添加新记忆</h3>
+              <h3 className="mb-3 text-sm font-semibold text-slate-700">
+                添加新记忆
+              </h3>
               <div className="flex gap-2">
                 <Input
                   value={newMemoryText}
@@ -1031,7 +1203,10 @@ export default function MemoriesPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleAddMemory()}
                   className="flex-1"
                 />
-                <Button onClick={handleAddMemory} disabled={addingMemory || !newMemoryText.trim()}>
+                <Button
+                  onClick={handleAddMemory}
+                  disabled={addingMemory || !newMemoryText.trim()}
+                >
                   {addingMemory ? "添加中…" : "保存"}
                 </Button>
                 <Button variant="ghost" onClick={() => setShowAddForm(false)}>
@@ -1101,65 +1276,73 @@ export default function MemoriesPage() {
 
           {/* Search */}
           {view === "list" && (
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="搜索记忆内容..."
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="pl-10"
-                />
-              </div>
-              <Button onClick={handleSearch} disabled={isSearching}>
-                {isSearching ? "搜索中…" : "搜索"}
-              </Button>
-              {searchQuery && (
-                <Button variant="ghost" onClick={() => { setSearchQuery(""); loadMemories(); }}>
-                  清除
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="搜索记忆内容..."
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    className="pl-10"
+                  />
+                </div>
+                <Button onClick={handleSearch} disabled={isSearching}>
+                  {isSearching ? "搜索中…" : "搜索"}
                 </Button>
-              )}
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setSearchQuery("");
+                      loadMemories();
+                    }}
+                  >
+                    清除
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
           )}
 
           {/* Memory List */}
           {view === "list" && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-700">
-                记忆列表 ({memories.length})
-              </h2>
-            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-700">
+                  记忆列表 ({memories.length})
+                </h2>
+              </div>
 
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-24 animate-pulse rounded-xl border border-slate-200 bg-white shadow-sm"
-                  />
-                ))}
-              </div>
-            ) : memories.length === 0 ? (
-              <div className="flex h-[120px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500">
-                {searchQuery ? "未找到匹配的记忆" : "暂无记忆，使用上方搜索框添加"}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {memories.map((memory) => (
-                  <MemoryCard
-                    key={memory.id}
-                    memory={memory}
-                    onDelete={handleDeleteMemory}
-                    onSelect={setSelectedMemory}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-24 animate-pulse rounded-xl border border-slate-200 bg-white shadow-sm"
+                    />
+                  ))}
+                </div>
+              ) : memories.length === 0 ? (
+                <div className="flex h-[120px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500">
+                  {searchQuery
+                    ? "未找到匹配的记忆"
+                    : "暂无记忆，使用上方搜索框添加"}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {memories.map((memory) => (
+                    <MemoryCard
+                      key={memory.id}
+                      memory={memory}
+                      onDelete={handleDeleteMemory}
+                      onSelect={setSelectedMemory}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>

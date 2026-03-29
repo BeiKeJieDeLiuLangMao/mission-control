@@ -174,15 +174,17 @@ export default function CostPage() {
     return costs.model_breakdown ?? [];
   }, [costs]);
 
-  const agentBreakdown = useMemo((): import("@/api/generated/model/agentCostBreakdown").AgentCostBreakdown[] => {
-    if (!costs) return [];
-    return costs.agent_breakdown ?? [];
-  }, [costs]);
+  const agentBreakdown =
+    useMemo((): import("@/api/generated/model/agentCostBreakdown").AgentCostBreakdown[] => {
+      if (!costs) return [];
+      return costs.agent_breakdown ?? [];
+    }, [costs]);
 
-  const agentDailySeries = useMemo((): import("@/api/generated/model/agentDailyPoint").AgentDailyPoint[] => {
-    if (!costs) return [];
-    return costs.agent_daily_series ?? [];
-  }, [costs]);
+  const agentDailySeries =
+    useMemo((): import("@/api/generated/model/agentDailyPoint").AgentDailyPoint[] => {
+      if (!costs) return [];
+      return costs.agent_daily_series ?? [];
+    }, [costs]);
 
   // top 5 agents by total_tokens, grouped by agent_id
   const top5AgentIds = useMemo(() => {

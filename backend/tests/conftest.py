@@ -47,4 +47,3 @@ def settings_with_env():
             os.environ.pop(key, None)
         else:
             os.environ[key] = original_value
-

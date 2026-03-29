@@ -5,11 +5,13 @@ from typing import Dict, List, Optional
 try:
     from together import Together
 except ImportError:
-    raise ImportError("The 'together' library is required. Please install it using 'pip install together'.")
+    raise ImportError(
+        "The 'together' library is required. Please install it using 'pip install together'."
+    )
 
 from app.memory.configs.llms.base import BaseLlmConfig
-from app.memory.providers.llms.base import LLMBase
 from app.memory.core.utils import extract_json
+from app.memory.providers.llms.base import LLMBase
 
 
 class TogetherLLM(LLMBase):

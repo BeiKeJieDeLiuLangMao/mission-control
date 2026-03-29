@@ -250,7 +250,12 @@ class PineconeDB(VectorStoreBase):
         """
         self.index.delete(ids=[str(vector_id)], namespace=self.namespace)
 
-    def update(self, vector_id: Union[str, int], vector: Optional[List[float]] = None, payload: Optional[Dict] = None):
+    def update(
+        self,
+        vector_id: Union[str, int],
+        vector: Optional[List[float]] = None,
+        payload: Optional[Dict] = None,
+    ):
         """
         Update a vector and its payload.
 

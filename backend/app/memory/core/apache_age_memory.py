@@ -7,13 +7,16 @@ from app.memory.core.utils import format_entities, sanitize_relationship_for_cyp
 try:
     import age
 except ImportError:
-    raise ImportError("apache-age-python is not installed. Please install it using pip install apache-age-python")
+    raise ImportError(
+        "apache-age-python is not installed. Please install it using pip install apache-age-python"
+    )
 
 try:
     from rank_bm25 import BM25Okapi
 except ImportError:
     raise ImportError("rank_bm25 is not installed. Please install it using pip install rank-bm25")
 
+from app.memory.providers.factory import EmbedderFactory, LlmFactory
 from app.memory.providers.graphs.tools import (
     DELETE_MEMORY_STRUCT_TOOL_GRAPH,
     DELETE_MEMORY_TOOL_GRAPH,
@@ -23,7 +26,6 @@ from app.memory.providers.graphs.tools import (
     RELATIONS_TOOL,
 )
 from app.memory.providers.graphs.utils import EXTRACT_RELATIONS_PROMPT, get_delete_messages
-from app.memory.providers.factory import EmbedderFactory, LlmFactory
 
 logger = logging.getLogger(__name__)
 
@@ -84,25 +86,39 @@ class MemoryGraph:
         )
 
         self.embedding_model = EmbedderFactory.create(
-            self.config.embedder.provider, self.config.embedder.config, self.config.vector_store.config
+            self.config.embedder.provider,
+            self.config.embedder.config,
+            self.config.vector_store.config,
         )
 
         # Default to openai if no specific provider is configured
         self.llm_provider = "openai"
         if self.config.llm and self.config.llm.provider:
             self.llm_provider = self.config.llm.provider
-        if self.config.graph_store and self.config.graph_store.llm and self.config.graph_store.llm.provider:
+        if (
+            self.config.graph_store
+            and self.config.graph_store.llm
+            and self.config.graph_store.llm.provider
+        ):
             self.llm_provider = self.config.graph_store.llm.provider
 
         # Get LLM config with proper null checks
         llm_config = None
-        if self.config.graph_store and self.config.graph_store.llm and hasattr(self.config.graph_store.llm, "config"):
+        if (
+            self.config.graph_store
+            and self.config.graph_store.llm
+            and hasattr(self.config.graph_store.llm, "config")
+        ):
             llm_config = self.config.graph_store.llm.config
         elif hasattr(self.config.llm, "config"):
             llm_config = self.config.llm.config
         self.llm = LlmFactory.create(self.llm_provider, llm_config)
         self.user_id = None
-        self.threshold = self.config.graph_store.threshold if hasattr(self.config.graph_store, "threshold") else 0.7
+        self.threshold = (
+            self.config.graph_store.threshold
+            if hasattr(self.config.graph_store, "threshold")
+            else 0.7
+        )
 
     # -- helpers ---------------------------------------------------------------
 
@@ -205,7 +221,9 @@ class MemoryGraph:
         """
         entity_type_map = self._retrieve_nodes_from_data(data, filters)
         to_be_added = self._establish_nodes_relations_from_data(data, filters, entity_type_map)
-        search_output = self._search_graph_db(node_list=list(entity_type_map.keys()), filters=filters)
+        search_output = self._search_graph_db(
+            node_list=list(entity_type_map.keys()), filters=filters
+        )
         to_be_deleted = self._get_delete_entities_from_search_output(search_output, data, filters)
 
         deleted_entities = self._delete_entities(to_be_deleted, filters)
@@ -226,7 +244,9 @@ class MemoryGraph:
             list: A list of dicts with keys "source", "relationship", "destination".
         """
         entity_type_map = self._retrieve_nodes_from_data(query, filters)
-        search_output = self._search_graph_db(node_list=list(entity_type_map.keys()), filters=filters)
+        search_output = self._search_graph_db(
+            node_list=list(entity_type_map.keys()), filters=filters
+        )
 
         if not search_output:
             return []
@@ -241,7 +261,9 @@ class MemoryGraph:
 
         search_results = []
         for item in reranked_results:
-            search_results.append({"source": item[0], "relationship": item[1], "destination": item[2]})
+            search_results.append(
+                {"source": item[0], "relationship": item[1], "destination": item[2]}
+            )
 
         logger.info(f"Returned {len(search_results)} search results")
         return search_results
@@ -289,8 +311,7 @@ class MemoryGraph:
         params.append(limit)
 
         results = self._exec_cypher(
-            f"MATCH (n)-[r]->(m) WHERE {where_clause} "
-            f"RETURN n.name, type(r), m.name LIMIT %s",
+            f"MATCH (n)-[r]->(m) WHERE {where_clause} " f"RETURN n.name, type(r), m.name LIMIT %s",
             cols=["source", "relationship", "target"],
             params=tuple(params),
         )
@@ -340,7 +361,10 @@ class MemoryGraph:
                 f"Error in search tool: {e}, llm_provider={self.llm_provider}, search_results={search_results}"
             )
 
-        entity_type_map = {k.lower().replace(" ", "_"): v.lower().replace(" ", "_") for k, v in entity_type_map.items()}
+        entity_type_map = {
+            k.lower().replace(" ", "_"): v.lower().replace(" ", "_")
+            for k, v in entity_type_map.items()
+        }
         logger.debug(f"Entity type map: {entity_type_map}\n search_results={search_results}")
         return entity_type_map
 
@@ -355,7 +379,9 @@ class MemoryGraph:
 
         if self.config.graph_store.custom_prompt:
             system_content = EXTRACT_RELATIONS_PROMPT.replace("USER_ID", user_identity)
-            system_content = system_content.replace("CUSTOM_PROMPT", f"4. {self.config.graph_store.custom_prompt}")
+            system_content = system_content.replace(
+                "CUSTOM_PROMPT", f"4. {self.config.graph_store.custom_prompt}"
+            )
             messages = [
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": data},
@@ -364,7 +390,10 @@ class MemoryGraph:
             system_content = EXTRACT_RELATIONS_PROMPT.replace("USER_ID", user_identity)
             messages = [
                 {"role": "system", "content": system_content},
-                {"role": "user", "content": f"List of entities: {list(entity_type_map.keys())}. \n\nText: {data}"},
+                {
+                    "role": "user",
+                    "content": f"List of entities: {list(entity_type_map.keys())}. \n\nText: {data}",
+                },
             ]
 
         _tools = [RELATIONS_TOOL]
@@ -482,8 +511,10 @@ class MemoryGraph:
                 relationship = item["relationship"]
 
                 where_parts = [
-                    "n.user_id = %s", "n.name = %s",
-                    "m.user_id = %s", "m.name = %s",
+                    "n.user_id = %s",
+                    "n.name = %s",
+                    "m.user_id = %s",
+                    "m.name = %s",
                 ]
                 params = [user_id, source, user_id, destination]
                 if agent_id:
@@ -532,8 +563,12 @@ class MemoryGraph:
                 source_embedding = self.embedding_model.embed(source)
                 dest_embedding = self.embedding_model.embed(destination)
 
-                source_match = self._find_similar_node(source_embedding, filters, threshold=self.threshold)
-                dest_match = self._find_similar_node(dest_embedding, filters, threshold=self.threshold)
+                source_match = self._find_similar_node(
+                    source_embedding, filters, threshold=self.threshold
+                )
+                dest_match = self._find_similar_node(
+                    dest_embedding, filters, threshold=self.threshold
+                )
 
                 effective_source = source_match["name"] if source_match else source
                 effective_dest = dest_match["name"] if dest_match else destination
@@ -562,7 +597,9 @@ class MemoryGraph:
     def _remove_spaces_from_entities(self, entity_list):
         for item in entity_list:
             item["source"] = item["source"].lower().replace(" ", "_")
-            item["relationship"] = sanitize_relationship_for_cypher(item["relationship"].lower().replace(" ", "_"))
+            item["relationship"] = sanitize_relationship_for_cypher(
+                item["relationship"].lower().replace(" ", "_")
+            )
             item["destination"] = item["destination"].lower().replace(" ", "_")
         return entity_list
 

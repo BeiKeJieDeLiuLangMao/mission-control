@@ -7,8 +7,8 @@ from openai import OpenAI
 
 from app.memory.configs.llms.base import BaseLlmConfig
 from app.memory.configs.llms.openai import OpenAIConfig
-from app.memory.providers.llms.base import LLMBase
 from app.memory.core.utils import extract_json
+from app.memory.providers.llms.base import LLMBase
 
 
 class OpenAILLM(LLMBase):
@@ -46,7 +46,11 @@ class OpenAILLM(LLMBase):
             )
         else:
             api_key = self.config.api_key or os.getenv("OPENAI_API_KEY")
-            base_url = self.config.openai_base_url or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+            base_url = (
+                self.config.openai_base_url
+                or os.getenv("OPENAI_BASE_URL")
+                or "https://api.openai.com/v1"
+            )
 
             self.client = OpenAI(api_key=api_key, base_url=base_url)
 
@@ -102,11 +106,13 @@ class OpenAILLM(LLMBase):
             json: The generated response.
         """
         params = self._get_supported_params(messages=messages, **kwargs)
-        
-        params.update({
-            "model": self.config.model,
-            "messages": messages,
-        })
+
+        params.update(
+            {
+                "model": self.config.model,
+                "messages": messages,
+            }
+        )
 
         if os.getenv("OPENROUTER_API_KEY"):
             openrouter_params = {}
@@ -123,13 +129,13 @@ class OpenAILLM(LLMBase):
                 openrouter_params["extra_headers"] = extra_headers
 
             params.update(**openrouter_params)
-        
+
         else:
             openai_specific_generation_params = ["store"]
             for param in openai_specific_generation_params:
                 if hasattr(self.config, param):
                     params[param] = getattr(self.config, param)
-            
+
         if response_format:
             params["response_format"] = response_format
         if tools:  # TODO: Remove tools if no issues found with new memory addition logic

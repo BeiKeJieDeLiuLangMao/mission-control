@@ -15,8 +15,8 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
-from .pattern import Pattern, PatternType, PatternEvidence
 from ..observation.models import Observation, ObservationType
+from .pattern import Pattern, PatternEvidence, PatternType
 
 
 class PatternDetector:
@@ -31,10 +31,10 @@ class PatternDetector:
 
     # Confidence thresholds (from ECC)
     CONFIDENCE_THRESHOLDS = {
-        "min": 0.3,      # 1-2 observations
-        "low": 0.7,      # 3-5 observations
+        "min": 0.3,  # 1-2 observations
+        "low": 0.7,  # 3-5 observations
         "medium": 0.85,  # 6-10 observations
-        "high": 0.95,    # 11+ observations
+        "high": 0.95,  # 11+ observations
     }
 
     # Frequency to confidence mapping
@@ -176,7 +176,9 @@ class PatternDetector:
         # Look for consistent ratings
         for memory_id, mem_feedback in by_memory.items():
             if len(mem_feedback) >= 2:
-                ratings = [f.data.get("rating") for f in mem_feedback if f.data.get("rating") is not None]
+                ratings = [
+                    f.data.get("rating") for f in mem_feedback if f.data.get("rating") is not None
+                ]
 
                 if ratings:
                     avg_rating = sum(ratings) / len(ratings)
@@ -222,7 +224,8 @@ class PatternDetector:
 
             # Find subsequent successful attempts of same method
             subsequent = [
-                o for o in observations
+                o
+                for o in observations
                 if o.timestamp > failed.timestamp
                 and o.data.get("method") == method
                 and o.data.get("success") is True

@@ -5,7 +5,9 @@ from typing import Literal, Optional
 try:
     import boto3
 except ImportError:
-    raise ImportError("The 'boto3' library is required. Please install it using 'pip install boto3'.")
+    raise ImportError(
+        "The 'boto3' library is required. Please install it using 'pip install boto3'."
+    )
 
 import numpy as np
 
@@ -34,7 +36,7 @@ class AWSBedrockEmbedding(EmbeddingBase):
             aws_access_key = self.config.aws_access_key_id
         if hasattr(self.config, "aws_secret_access_key"):
             aws_secret_key = self.config.aws_secret_access_key
-        
+
         # AWS region is always set in config - see BaseEmbedderConfig
         aws_region = self.config.aws_region or "us-west-2"
 

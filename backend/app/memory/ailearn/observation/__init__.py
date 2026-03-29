@@ -7,11 +7,11 @@ similar to Everything Claude Code's continuous-learning-v2 system.
 
 from typing import Optional
 
-from .hooks.memory_hook import MemoryObservationHook
-from .storage.observation_store import ObservationStore, FileObservationStore
-from .storage.buffer import ObservationBuffer
-from .filters.privacy_filter import PrivacyFilter
 from .collectors.project_detector import ProjectDetector
+from .filters.privacy_filter import PrivacyFilter
+from .hooks.memory_hook import MemoryObservationHook
+from .storage.buffer import ObservationBuffer
+from .storage.observation_store import FileObservationStore, ObservationStore
 
 __all__ = [
     "MemoryObservationHook",
@@ -74,6 +74,7 @@ def enable_observation(
     # Set up storage backend
     if storage_path is None:
         import os
+
         storage_path = os.path.expanduser("~/.mem0/observations")
 
     storage_backend = FileObservationStore(storage_path)

@@ -6,8 +6,8 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import AzureOpenAI
 
 from app.memory.configs.llms.base import BaseLlmConfig
-from app.memory.providers.llms.base import LLMBase
 from app.memory.core.utils import extract_json
+from app.memory.providers.llms.base import LLMBase
 
 SCOPE = "https://cognitiveservices.azure.com/.default"
 
@@ -21,7 +21,9 @@ class AzureOpenAIStructuredLLM(LLMBase):
             self.config.model = "gpt-4.1-nano-2025-04-14"
 
         api_key = self.config.azure_kwargs.api_key or os.getenv("LLM_AZURE_OPENAI_API_KEY")
-        azure_deployment = self.config.azure_kwargs.azure_deployment or os.getenv("LLM_AZURE_DEPLOYMENT")
+        azure_deployment = self.config.azure_kwargs.azure_deployment or os.getenv(
+            "LLM_AZURE_DEPLOYMENT"
+        )
         azure_endpoint = self.config.azure_kwargs.azure_endpoint or os.getenv("LLM_AZURE_ENDPOINT")
         api_version = self.config.azure_kwargs.api_version or os.getenv("LLM_AZURE_API_VERSION")
         default_headers = self.config.azure_kwargs.default_headers

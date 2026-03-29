@@ -16,20 +16,19 @@ class PrivacyFilter:
 
     # PII patterns
     PATTERNS = {
-        "email": r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-        "phone": r'\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b',
-        "ssn": r'\b\d{3}[-.]?\d{2}[-.]?\d{4}\b',
-        "credit_card": r'\b(?:\d[ -]*?){13,16}\b',
+        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+        "phone": r"\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b",
+        "ssn": r"\b\d{3}[-.]?\d{2}[-.]?\d{4}\b",
+        "credit_card": r"\b(?:\d[ -]*?){13,16}\b",
         "api_key": r'\b(?:api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*[\'"]?([A-Za-z0-9_\-]+)[\'"]?\b',
-        "bearer_token": r'\bBearer\s+[A-Za-z0-9_\-\.]+\b',
-        "ip_address": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+        "bearer_token": r"\bBearer\s+[A-Za-z0-9_\-\.]+\b",
+        "ip_address": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",
     }
 
     def __init__(self):
         """Initialize compiled patterns for performance."""
         self.compiled_patterns = {
-            name: re.compile(pattern, re.IGNORECASE)
-            for name, pattern in self.PATTERNS.items()
+            name: re.compile(pattern, re.IGNORECASE) for name, pattern in self.PATTERNS.items()
         }
 
     def redact(self, text: str) -> str:
@@ -51,19 +50,19 @@ class PrivacyFilter:
                 redaction_count += len(matches)
                 # Replace with placeholder
                 if name == "email":
-                    redacted = pattern.sub('[REDACTED_EMAIL]', redacted)
+                    redacted = pattern.sub("[REDACTED_EMAIL]", redacted)
                 elif name == "phone":
-                    redacted = pattern.sub('[REDACTED_PHONE]', redacted)
+                    redacted = pattern.sub("[REDACTED_PHONE]", redacted)
                 elif name == "ssn":
-                    redacted = pattern.sub('[REDACTED_SSN]', redacted)
+                    redacted = pattern.sub("[REDACTED_SSN]", redacted)
                 elif name == "credit_card":
-                    redacted = pattern.sub('[REDACTED_CARD]', redacted)
+                    redacted = pattern.sub("[REDACTED_CARD]", redacted)
                 elif name == "api_key":
-                    redacted = pattern.sub('[REDACTED_API_KEY]', redacted)
+                    redacted = pattern.sub("[REDACTED_API_KEY]", redacted)
                 elif name == "bearer_token":
-                    redacted = pattern.sub('[REDACTED_TOKEN]', redacted)
+                    redacted = pattern.sub("[REDACTED_TOKEN]", redacted)
                 elif name == "ip_address":
-                    redacted = pattern.sub('[REDACTED_IP]', redacted)
+                    redacted = pattern.sub("[REDACTED_IP]", redacted)
 
         return redacted
 

@@ -13,7 +13,7 @@ tick() calls would each re-apply the full cumulative decay from the original
 confirmation date.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from .instincts import Instinct

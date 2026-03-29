@@ -5,10 +5,10 @@ Tracks how memories change over time with version history.
 """
 
 import asyncio
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import uuid
 
 from ..observation.models import Observation
 
@@ -228,10 +228,7 @@ class EvolutionTracker:
 
     def get_version_history(self, memory_id: str) -> List[MemoryVersion]:
         """Get all versions of a memory."""
-        return [
-            v for v in self._versions
-            if v.memory_id == memory_id
-        ]
+        return [v for v in self._versions if v.memory_id == memory_id]
 
     def get_pending_proposals(
         self,
@@ -239,10 +236,7 @@ class EvolutionTracker:
         agent_id: Optional[str] = None,
     ) -> List[AmendmentProposal]:
         """Get pending amendment proposals."""
-        proposals = [
-            p for p in self._proposals
-            if p.status == "pending"
-        ]
+        proposals = [p for p in self._proposals if p.status == "pending"]
 
         if project_id:
             proposals = [p for p in proposals if p.project_id == project_id]

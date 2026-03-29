@@ -11,6 +11,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 class MemoryGraph(NeptuneBase):
     def __init__(self, config):
         """
@@ -47,17 +48,25 @@ class MemoryGraph(NeptuneBase):
         else:
             vector_store_config = self.config.vector_store.config
             if vector_store_config.collection_name:
-                vector_store_collection_name = vector_store_config.collection_name + "_neptune_vector_store"
+                vector_store_collection_name = (
+                    vector_store_config.collection_name + "_neptune_vector_store"
+                )
             else:
                 vector_store_collection_name = "mem0_neptune_vector_store"
         self.config.vector_store.config.collection_name = vector_store_collection_name
-        self.vector_store = NeptuneBase._create_vector_store(self.vector_store_provider, self.config)
+        self.vector_store = NeptuneBase._create_vector_store(
+            self.vector_store_provider, self.config
+        )
 
         self.llm = NeptuneBase._create_llm(self.config, self.llm_provider)
         self.user_id = None
         # Use threshold from graph_store config, default to 0.7 for backward compatibility
-        self.threshold = self.config.graph_store.threshold if hasattr(self.config.graph_store, 'threshold') else 0.7
-        self.vector_store_limit=5
+        self.threshold = (
+            self.config.graph_store.threshold
+            if hasattr(self.config.graph_store, "threshold")
+            else 0.7
+        )
+        self.vector_store_limit = 5
 
     def _delete_entities_cypher(self, source, destination, relationship, user_id):
         """
@@ -89,13 +98,13 @@ class MemoryGraph(NeptuneBase):
         return cypher, params
 
     def _add_entities_by_source_cypher(
-            self,
-            source_node_list,
-            destination,
-            dest_embedding,
-            destination_type,
-            relationship,
-            user_id,
+        self,
+        source_node_list,
+        destination,
+        dest_embedding,
+        destination_type,
+        relationship,
+        user_id,
     ):
         """
         Returns the OpenCypher query and parameters for adding entities in the graph DB
@@ -164,13 +173,13 @@ class MemoryGraph(NeptuneBase):
         return cypher, params
 
     def _add_entities_by_destination_cypher(
-            self,
-            source,
-            source_embedding,
-            source_type,
-            destination_node_list,
-            relationship,
-            user_id,
+        self,
+        source,
+        source_embedding,
+        source_type,
+        destination_node_list,
+        relationship,
+        user_id,
     ):
         """
         Returns the OpenCypher query and parameters for adding entities in the graph DB
@@ -240,11 +249,11 @@ class MemoryGraph(NeptuneBase):
         return cypher, params
 
     def _add_relationship_entities_cypher(
-            self,
-            source_node_list,
-            destination_node_list,
-            relationship,
-            user_id,
+        self,
+        source_node_list,
+        destination_node_list,
+        relationship,
+        user_id,
     ):
         """
         Returns the OpenCypher query and parameters for adding entities in the graph DB
@@ -362,9 +371,7 @@ class MemoryGraph(NeptuneBase):
             "dest_embedding": dest_embedding,
             "user_id": user_id,
         }
-        logger.debug(
-            f"_add_new_entities_cypher:\n  query={cypher}"
-        )
+        logger.debug(f"_add_new_entities_cypher:\n  query={cypher}")
         return cypher, params
 
     def _search_source_node_cypher(self, source_embedding, user_id, threshold):

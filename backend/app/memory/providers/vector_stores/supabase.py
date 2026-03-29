@@ -86,15 +86,24 @@ class Supabase(VectorStoreBase):
 
         logger.info(f"Creating new collection: {self.collection_name}")
         try:
-            self.collection = self.db.get_or_create_collection(name=self.collection_name, dimension=dims)
-            self.collection.create_index(method=self.index_method.value, measure=self.index_measure.value)
-            logger.info(f"Successfully created collection {self.collection_name} with dimension {dims}")
+            self.collection = self.db.get_or_create_collection(
+                name=self.collection_name, dimension=dims
+            )
+            self.collection.create_index(
+                method=self.index_method.value, measure=self.index_measure.value
+            )
+            logger.info(
+                f"Successfully created collection {self.collection_name} with dimension {dims}"
+            )
         except Exception as e:
             logger.error(f"Failed to create collection: {str(e)}")
             raise
 
     def insert(
-        self, vectors: List[List[float]], payloads: Optional[List[dict]] = None, ids: Optional[List[str]] = None
+        self,
+        vectors: List[List[float]],
+        payloads: Optional[List[dict]] = None,
+        ids: Optional[List[str]] = None,
     ):
         """
         Insert vectors into the collection.
@@ -135,7 +144,10 @@ class Supabase(VectorStoreBase):
             data=vectors, limit=limit, filters=filters, include_metadata=True, include_value=True
         )
 
-        return [OutputData(id=str(result[0]), score=float(result[1]), payload=result[2]) for result in results]
+        return [
+            OutputData(id=str(result[0]), score=float(result[1]), payload=result[2])
+            for result in results
+        ]
 
     def delete(self, vector_id: str):
         """
@@ -146,7 +158,9 @@ class Supabase(VectorStoreBase):
         """
         self.collection.delete([(vector_id,)])
 
-    def update(self, vector_id: str, vector: Optional[List[float]] = None, payload: Optional[dict] = None):
+    def update(
+        self, vector_id: str, vector: Optional[List[float]] = None, payload: Optional[dict] = None
+    ):
         """
         Update a vector and/or its payload.
 
@@ -228,7 +242,9 @@ class Supabase(VectorStoreBase):
         ids = [id[0] for id in ids]
         records = self.collection.fetch(ids=ids)
 
-        return [[OutputData(id=str(record[0]), score=None, payload=record[2]) for record in records]]
+        return [
+            [OutputData(id=str(record[0]), score=None, payload=record[2]) for record in records]
+        ]
 
     def reset(self):
         """Reset the index by deleting and recreating it."""

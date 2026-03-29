@@ -128,7 +128,7 @@ class ProjectDetector:
         # Remove protocol
         for prefix in ["https://", "http://", "git@", "ssh://"]:
             if remote_url.startswith(prefix):
-                remote_url = remote_url[len(prefix):]
+                remote_url = remote_url[len(prefix) :]
                 break
 
         # Get last part (repository name)

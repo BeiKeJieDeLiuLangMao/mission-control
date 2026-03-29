@@ -8,8 +8,8 @@ except ImportError:
     raise ImportError("The 'groq' library is required. Please install it using 'pip install groq'.")
 
 from app.memory.configs.llms.base import BaseLlmConfig
-from app.memory.providers.llms.base import LLMBase
 from app.memory.core.utils import extract_json
+from app.memory.providers.llms.base import LLMBase
 
 
 class GroqLLM(LLMBase):

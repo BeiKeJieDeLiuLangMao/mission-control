@@ -3,11 +3,11 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
+from app.memory.configs.rerankers.config import RerankerConfig
 from app.memory.providers.embeddings.configs import EmbedderConfig
 from app.memory.providers.graphs.configs import GraphStoreConfig
 from app.memory.providers.llms.configs import LlmConfig
 from app.memory.providers.vector_stores.configs import VectorStoreConfig
-from app.memory.configs.rerankers.config import RerankerConfig
 
 # Set up the directory path
 home_dir = os.path.expanduser("~")
@@ -21,7 +21,9 @@ class MemoryItem(BaseModel):
     )  # TODO After prompt changes from platform, update this
     hash: Optional[str] = Field(None, description="The hash of the memory")
     # The metadata value can be anything and not just string. Fix it
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata for the text data")
+    metadata: Optional[Dict[str, Any]] = Field(
+        None, description="Additional metadata for the text data"
+    )
     score: Optional[float] = Field(None, description="The score associated with the text data")
     created_at: Optional[str] = Field(None, description="The timestamp when the memory was created")
     updated_at: Optional[str] = Field(None, description="The timestamp when the memory was updated")

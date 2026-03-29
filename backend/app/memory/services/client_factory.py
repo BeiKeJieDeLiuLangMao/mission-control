@@ -31,12 +31,12 @@ def _get_docker_host_url() -> str:
     Returns the best available option for reaching the host from inside a container.
     """
     # Check for custom environment variable first
-    custom_host = os.environ.get('OLLAMA_HOST')
+    custom_host = os.environ.get("OLLAMA_HOST")
     if custom_host:
-        return custom_host.replace('http://', '').replace('https://', '').split(':')[0]
+        return custom_host.replace("http://", "").replace("https://", "").split(":")[0]
 
     # Check if we're running inside Docker
-    if not os.path.exists('/.dockerenv'):
+    if not os.path.exists("/.dockerenv"):
         return "localhost"
 
     # Try different host resolution strategies
@@ -44,17 +44,17 @@ def _get_docker_host_url() -> str:
 
     # 1. host.docker.internal (works on Docker Desktop for Mac/Windows)
     try:
-        socket.gethostbyname('host.docker.internal')
-        host_candidates.append('host.docker.internal')
+        socket.gethostbyname("host.docker.internal")
+        host_candidates.append("host.docker.internal")
     except socket.gaierror:
         pass
 
     # 2. Docker bridge gateway (typically 172.17.0.1 on Linux)
     try:
-        with open('/proc/net/route', 'r') as f:
+        with open("/proc/net/route", "r") as f:
             for line in f:
                 fields = line.strip().split()
-                if fields[1] == '00000000':  # Default route
+                if fields[1] == "00000000":  # Default route
                     gateway_hex = fields[2]
                     gateway_ip = socket.inet_ntoa(bytes.fromhex(gateway_hex)[::-1])
                     host_candidates.append(gateway_ip)
@@ -64,7 +64,7 @@ def _get_docker_host_url() -> str:
 
     # 3. Fallback to common Docker bridge IP
     if not host_candidates:
-        host_candidates.append('172.17.0.1')
+        host_candidates.append("172.17.0.1")
 
     return host_candidates[0]
 
@@ -96,20 +96,20 @@ def _fix_ollama_urls(config_section: dict) -> dict:
 def get_default_memory_config() -> dict:
     """Get default memory client configuration."""
     # Vector store configuration
-    collection_name = os.environ.get('QDRANT_COLLECTION', 'memories')
+    collection_name = os.environ.get("QDRANT_COLLECTION", "memories")
     vector_store_config = {
         "collection_name": collection_name,
-        "host": os.environ.get('QDRANT_HOST', '127.0.0.1'),
-        "port": int(os.environ.get('QDRANT_PORT', 6333)),
+        "host": os.environ.get("QDRANT_HOST", "127.0.0.1"),
+        "port": int(os.environ.get("QDRANT_PORT", 6333)),
     }
     vector_store_provider = "qdrant"
 
     # LLM configuration
-    llm_provider = os.environ.get('LLM_PROVIDER', 'openai').lower()
-    llm_model = os.environ.get('LLM_MODEL', 'gpt-4o-mini')
-    llm_api_key = os.environ.get('LLM_API_KEY', 'env:OPENAI_API_KEY')
-    llm_base_url = os.environ.get('LLM_BASE_URL')
-    ollama_base_url = os.environ.get('OLLAMA_BASE_URL')
+    llm_provider = os.environ.get("LLM_PROVIDER", "openai").lower()
+    llm_model = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+    llm_api_key = os.environ.get("LLM_API_KEY", "env:OPENAI_API_KEY")
+    llm_base_url = os.environ.get("LLM_BASE_URL")
+    ollama_base_url = os.environ.get("OLLAMA_BASE_URL")
 
     llm_config: dict[str, Any] = {
         "temperature": 0.1,
@@ -130,15 +130,17 @@ def get_default_memory_config() -> dict:
             llm_config["api_key"] = llm_api_key
 
     # Embedder configuration
-    embedder_provider = os.environ.get('EMBEDDER_PROVIDER', 'openai').lower()
-    embedder_model = os.environ.get('EMBEDDER_MODEL', 'text-embedding-3-small')
-    embedder_api_key = os.environ.get('EMBEDDER_API_KEY', 'env:OPENAI_API_KEY')
-    embedder_base_url = os.environ.get('EMBEDDER_BASE_URL')
+    embedder_provider = os.environ.get("EMBEDDER_PROVIDER", "openai").lower()
+    embedder_model = os.environ.get("EMBEDDER_MODEL", "text-embedding-3-small")
+    embedder_api_key = os.environ.get("EMBEDDER_API_KEY", "env:OPENAI_API_KEY")
+    embedder_base_url = os.environ.get("EMBEDDER_BASE_URL")
 
     embedder_config: dict[str, Any] = {}
     if embedder_provider == "ollama":
         embedder_config["model"] = embedder_model or "nomic-embed-text"
-        embedder_config["ollama_base_url"] = embedder_base_url or ollama_base_url or llm_base_url or "http://localhost:11434"
+        embedder_config["ollama_base_url"] = (
+            embedder_base_url or ollama_base_url or llm_base_url or "http://localhost:11434"
+        )
     elif embedder_provider == "openai":
         embedder_config["model"] = embedder_model or "text-embedding-3-small"
         embedder_config["api_key"] = embedder_api_key
@@ -151,30 +153,21 @@ def get_default_memory_config() -> dict:
 
     # Graph store configuration (Neo4j)
     graph_store_config = None
-    if os.environ.get('NEO4J_URI'):
+    if os.environ.get("NEO4J_URI"):
         graph_store_config = {
             "provider": "neo4j",
             "config": {
-                "url": os.environ.get('NEO4J_URI', 'bolt://localhost:7687'),
-                "username": os.environ.get('NEO4J_USERNAME', 'neo4j'),
-                "password": os.environ.get('NEO4J_PASSWORD', ''),
-            }
+                "url": os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
+                "username": os.environ.get("NEO4J_USERNAME", "neo4j"),
+                "password": os.environ.get("NEO4J_PASSWORD", ""),
+            },
         }
 
     config = {
-        "vector_store": {
-            "provider": vector_store_provider,
-            "config": vector_store_config
-        },
-        "llm": {
-            "provider": llm_provider,
-            "config": llm_config
-        },
-        "embedder": {
-            "provider": embedder_provider,
-            "config": embedder_config
-        },
-        "version": "v1.1"
+        "vector_store": {"provider": vector_store_provider, "config": vector_store_config},
+        "llm": {"provider": llm_provider, "config": llm_config},
+        "embedder": {"provider": embedder_provider, "config": embedder_config},
+        "version": "v1.1",
     }
 
     if graph_store_config:
@@ -232,6 +225,7 @@ def get_memory_client() -> Optional[Any]:
 
         if _memory_client is None or _config_hash != current_config_hash:
             from app.memory.core.engine import Memory
+
             _memory_client = Memory.from_config(config_dict=config)
             _config_hash = current_config_hash
 
@@ -240,6 +234,7 @@ def get_memory_client() -> Optional[Any]:
     except Exception as e:
         import logging
         import traceback
+
         logging.error(f"Failed to initialize memory client: {e}")
         logging.error(f"Traceback: {traceback.format_exc()}")
         return None

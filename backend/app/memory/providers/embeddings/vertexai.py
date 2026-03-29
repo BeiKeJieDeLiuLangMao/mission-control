@@ -25,9 +25,9 @@ class VertexAIEmbedding(EmbeddingBase):
         # This supports multiple authentication methods while preserving environment variable support
         try:
             GCPAuthenticator.setup_vertex_ai(
-                service_account_json=getattr(self.config, 'google_service_account_json', None),
+                service_account_json=getattr(self.config, "google_service_account_json", None),
                 credentials_path=self.config.vertex_credentials_json,
-                project_id=getattr(self.config, 'google_project_id', None)
+                project_id=getattr(self.config, "google_project_id", None),
             )
         except Exception:
             # Fall back to original behavior for backward compatibility
@@ -59,6 +59,8 @@ class VertexAIEmbedding(EmbeddingBase):
             embedding_type = self.embedding_types[memory_action]
 
         text_input = TextEmbeddingInput(text=text, task_type=embedding_type)
-        embeddings = self.model.get_embeddings(texts=[text_input], output_dimensionality=self.config.embedding_dims)
+        embeddings = self.model.get_embeddings(
+            texts=[text_input], output_dimensionality=self.config.embedding_dims
+        )
 
         return embeddings[0].values

@@ -596,3 +596,36 @@ async def test_apply_invite_to_member_upgrades_role_and_merges_access_rows(
     assert member.role == "admin"
     # should have added a new OrganizationBoardAccess row
     assert any(isinstance(x, OrganizationBoardAccess) for x in session.added)
+
+
+@pytest.mark.asyncio
+async def test_apply_invite_to_member_write_only_does_not_grant_read() -> None:
+    """Regression: invite with all_boards_write but not all_boards_read must not set read."""
+    org_id = uuid4()
+    member = OrganizationMember(
+        id=uuid4(),
+        organization_id=org_id,
+        user_id=uuid4(),
+        role="member",
+        all_boards_read=False,
+        all_boards_write=False,
+    )
+
+    invite = OrganizationInvite(
+        id=uuid4(),
+        organization_id=org_id,
+        invited_email="writer@example.com",
+        token="tok",
+        role="member",
+        all_boards_read=False,
+        all_boards_write=True,
+    )
+
+    session = _FakeSession(exec_results=[])
+
+    await organizations.apply_invite_to_member(session, member=member, invite=invite)
+
+    assert member.all_boards_write is True
+    assert (
+        member.all_boards_read is False
+    ), "all_boards_read should remain False when invite only grants all_boards_write"

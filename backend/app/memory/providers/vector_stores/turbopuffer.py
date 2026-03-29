@@ -124,11 +124,13 @@ class TurbopufferDB(VectorStoreBase):
 
             score = 1 - dist if dist is not None else None
 
-            results.append(OutputData(
-                id=row_id,
-                score=score,
-                payload=row_dict,
-            ))
+            results.append(
+                OutputData(
+                    id=row_id,
+                    score=score,
+                    payload=row_dict,
+                )
+            )
         return results
 
     def _convert_filters(self, filters: Optional[Dict]):

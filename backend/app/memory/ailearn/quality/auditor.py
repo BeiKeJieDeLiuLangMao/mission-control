@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional
 
 from ..instincts.instincts import Instinct
 
-
 # Thresholds
 LOW_CONFIDENCE_THRESHOLD = 0.3
 STALE_THRESHOLD_DAYS = 30
@@ -57,61 +56,73 @@ class SkillQualityAuditor:
 
         # Disabled check (critical)
         if not instinct.enabled:
-            findings.append(self._make_finding(
-                instinct,
-                "disabled",
-                "critical",
-                "Skill is disabled and will not be applied.",
-            ))
+            findings.append(
+                self._make_finding(
+                    instinct,
+                    "disabled",
+                    "critical",
+                    "Skill is disabled and will not be applied.",
+                )
+            )
             return findings  # skip further checks
 
         # Low confidence (warning)
         if instinct.confidence < LOW_CONFIDENCE_THRESHOLD:
-            findings.append(self._make_finding(
-                instinct,
-                "low_confidence",
-                "warning",
-                f"Confidence is very low ({instinct.confidence:.2f}). "
-                f"Consider improving the skill's trigger conditions.",
-            ))
+            findings.append(
+                self._make_finding(
+                    instinct,
+                    "low_confidence",
+                    "warning",
+                    f"Confidence is very low ({instinct.confidence:.2f}). "
+                    f"Consider improving the skill's trigger conditions.",
+                )
+            )
 
         # Low success rate (warning)
         if instinct.success_rate < 0.5 and instinct.times_applied >= 5:
-            findings.append(self._make_finding(
-                instinct,
-                "low_success_rate",
-                "warning",
-                f"Success rate is low ({instinct.success_rate:.2f}) after "
-                f"{instinct.times_applied} applications.",
-            ))
+            findings.append(
+                self._make_finding(
+                    instinct,
+                    "low_success_rate",
+                    "warning",
+                    f"Success rate is low ({instinct.success_rate:.2f}) after "
+                    f"{instinct.times_applied} applications.",
+                )
+            )
 
         # Never applied (info)
         if instinct.times_applied == 0:
-            findings.append(self._make_finding(
-                instinct,
-                "never_applied",
-                "info",
-                "Skill has never been applied.",
-            ))
+            findings.append(
+                self._make_finding(
+                    instinct,
+                    "never_applied",
+                    "info",
+                    "Skill has never been applied.",
+                )
+            )
 
         # Stale check (info)
         if instinct.last_confirmed_at is None:
-            findings.append(self._make_finding(
-                instinct,
-                "stale",
-                "info",
-                "Skill has never been confirmed.",
-            ))
+            findings.append(
+                self._make_finding(
+                    instinct,
+                    "stale",
+                    "info",
+                    "Skill has never been confirmed.",
+                )
+            )
         else:
             now = datetime.now(timezone.utc)
             age_days = (now - instinct.last_confirmed_at).total_seconds() / 86400
             if age_days > STALE_THRESHOLD_DAYS:
-                findings.append(self._make_finding(
-                    instinct,
-                    "stale",
-                    "info",
-                    f"Skill has not been confirmed in {int(age_days)} days.",
-                ))
+                findings.append(
+                    self._make_finding(
+                        instinct,
+                        "stale",
+                        "info",
+                        f"Skill has not been confirmed in {int(age_days)} days.",
+                    )
+                )
 
         return findings
 
@@ -158,11 +169,7 @@ class SkillQualityAuditor:
 
         # Build summary
         for skill_id, rec in skill_recs.items():
-            issue_types = [
-                f["issue_type"]
-                for f in findings
-                if f["skill_id"] == skill_id
-            ]
+            issue_types = [f["issue_type"] for f in findings if f["skill_id"] == skill_id]
             rec["summary"] = f"Issues: {', '.join(set(issue_types))}."
 
         return {

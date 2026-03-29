@@ -199,13 +199,7 @@ def _validate_pack_source_url(source_url: str) -> None:
     except ValueError:
         pass  # Not a literal IP – continue to hostname checks.
     else:
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
             raise ValueError("Pack source URL hostname is not allowed")
         # Even a public literal IP is rejected – we require a named host.
         raise ValueError("Pack source URL must use a hostname, not an IP address")
@@ -255,13 +249,7 @@ def _validate_marketplace_skill_source_url(source_url: str) -> None:
     except ValueError:
         pass  # Not a literal IP.
     else:
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-        ):
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
             raise ValueError("Marketplace skill source URL hostname is not allowed")
 
     if host in {"localhost"}:

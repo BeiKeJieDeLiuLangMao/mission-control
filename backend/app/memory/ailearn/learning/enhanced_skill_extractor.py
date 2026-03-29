@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from .pattern import Pattern, SkillCandidate, PatternType
+from .pattern import Pattern, PatternType, SkillCandidate
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +110,13 @@ class LLMSkillExtractor:
                 source_pattern_ids=[pattern.id],
                 confidence=pattern.confidence,
                 instructions=skill_data.get("instructions", ""),
-                examples=[{
-                    "context": skill_data.get("context", ""),
-                    "workflow": skill_data.get("workflow", ""),
-                    "outcome": skill_data.get("outcome", ""),
-                }],
+                examples=[
+                    {
+                        "context": skill_data.get("context", ""),
+                        "workflow": skill_data.get("workflow", ""),
+                        "outcome": skill_data.get("outcome", ""),
+                    }
+                ],
                 project_id=pattern.project_id,
                 agent_id=pattern.agent_id,
                 tags=["workflow", "llm-extracted"],
@@ -186,18 +188,23 @@ Respond ONLY with valid JSON, no additional text."""
             return SkillCandidate(
                 name=f"Preference: {skill_data.get('preference_topic', 'Unknown')}",
                 description=skill_data.get("description", ""),
-                trigger_phrases=skill_data.get("trigger_phrases", [
-                    "remember my preference",
-                    "what do I prefer",
-                    "my choice",
-                ]),
+                trigger_phrases=skill_data.get(
+                    "trigger_phrases",
+                    [
+                        "remember my preference",
+                        "what do I prefer",
+                        "my choice",
+                    ],
+                ),
                 source_pattern_ids=[pattern.id],
                 confidence=pattern.confidence,
                 instructions=skill_data.get("instructions", ""),
-                examples=[{
-                    "preference": skill_data.get("preference", ""),
-                    "rationale": skill_data.get("rationale", ""),
-                }],
+                examples=[
+                    {
+                        "preference": skill_data.get("preference", ""),
+                        "rationale": skill_data.get("rationale", ""),
+                    }
+                ],
                 project_id=pattern.project_id,
                 agent_id=pattern.agent_id,
                 tags=["preference", "llm-extracted"],
@@ -334,6 +341,7 @@ class EnhancedSkillExtractor:
 
         # Import rule-based extractor as fallback
         from .skill_extractor import SkillExtractor as RuleBasedSkillExtractor
+
         self.rule_based = RuleBasedSkillExtractor()
 
         # Initialize LLM-based extractor if client available

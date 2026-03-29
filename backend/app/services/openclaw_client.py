@@ -96,9 +96,7 @@ class OpenClawClient:
             # { "success": bool, "result": any, "error": any }
             if not data.get("success"):
                 error = data.get("error", {})
-                error_msg = (
-                    error.get("message") if isinstance(error, dict) else str(error)
-                )
+                error_msg = error.get("message") if isinstance(error, dict) else str(error)
                 raise OpenClawAPIError(f"OpenClaw API error: {error_msg}")
 
             return data.get("result", {})

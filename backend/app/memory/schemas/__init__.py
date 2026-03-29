@@ -60,6 +60,19 @@ class MemoryListResponse(BaseModel):
     size: int
 
 
+class TurnItem(BaseModel):
+    """Turn 条目（用于列表/详情展示）"""
+
+    id: str
+    session_id: str
+    user_id: str
+    agent_id: str
+    source: str
+    processing_status: str
+    message_count: int = 0
+    created_at: Optional[str] = None
+
+
 class TaskSegmentItem(BaseModel):
     """任务分段条目"""
 
@@ -77,3 +90,26 @@ class TaskSegmentItem(BaseModel):
     segmentation_confidence: float = 0.0
     event_time: Optional[str] = None
     created_at: Optional[str] = None
+
+
+class TaskSegmentDetail(BaseModel):
+    """Task Segment 详情，含关联 turns 和 memories"""
+
+    segment: TaskSegmentItem
+    turns: List[TurnItem] = Field(default_factory=list)
+    memories: List[MemoryItem] = Field(default_factory=list)
+
+
+class TaskSegmentListResponse(BaseModel):
+    """Task Segment 列表响应"""
+
+    items: List[TaskSegmentItem]
+    total: int
+
+
+class TaskSegmentStats(BaseModel):
+    """Task Segment 统计"""
+
+    total: int = 0
+    by_status: dict = Field(default_factory=dict)
+    by_task_type: dict = Field(default_factory=dict)

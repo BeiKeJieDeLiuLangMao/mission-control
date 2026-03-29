@@ -34,7 +34,9 @@ try:
         VectorTopkSearchRequest,
     )
 except ImportError:
-    raise ImportError("The 'pymochow' library is required. Please install it using 'pip install pymochow'.")
+    raise ImportError(
+        "The 'pymochow' library is required. Please install it using 'pip install pymochow'."
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +133,12 @@ class BaiduDB(VectorStoreBase):
             # Define table schema
             fields = [
                 Field(
-                    "id", FieldType.STRING, primary_key=True, partition_key=True, auto_increment=False, not_null=True
+                    "id",
+                    FieldType.STRING,
+                    primary_key=True,
+                    partition_key=True,
+                    auto_increment=False,
+                    not_null=True,
                 ),
                 Field("vector", FieldType.FLOAT_VECTOR, dimension=vector_size),
                 Field("metadata", FieldType.JSON),
@@ -221,7 +228,9 @@ class BaiduDB(VectorStoreBase):
         for row in res.rows:
             row_data = row.get("row", {})
             output_data = OutputData(
-                id=row_data.get("id"), score=row.get("score", 0.0), payload=row_data.get("metadata", {})
+                id=row_data.get("id"),
+                score=row.get("score", 0.0),
+                payload=row_data.get("metadata", {}),
             )
             output.append(output_data)
 

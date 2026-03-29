@@ -104,9 +104,7 @@ class TestOpenClawClient:
     async def test_call_method_connection_error(self, client: OpenClawClient) -> None:
         """Test connection error."""
         mock_client = AsyncMock()
-        mock_client.post = AsyncMock(
-            side_effect=httpx.RequestError("Connection failed")
-        )
+        mock_client.post = AsyncMock(side_effect=httpx.RequestError("Connection failed"))
 
         with patch.object(client, "_get_client", return_value=mock_client):
             with pytest.raises(OpenClawAPIError) as exc_info:

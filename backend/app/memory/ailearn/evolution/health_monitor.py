@@ -13,6 +13,7 @@ from .metrics import HealthMetrics, MetricsCollector
 
 class HealthStatus(Enum):
     """Health status levels."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -21,6 +22,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthAlert:
     """A health alert."""
+
     severity: str  # info, warning, critical
     message: str
     metric_name: str
@@ -79,37 +81,43 @@ class HealthMonitor:
         # Check success rates
         if metrics.total_adds >= self.THRESHOLDS["min_operation_count"]:
             if metrics.add_success_rate < self.THRESHOLDS["min_success_rate"]:
-                alerts.append(HealthAlert(
-                    severity="critical",
-                    message=f"Add success rate below threshold: {metrics.add_success_rate:.2f}",
-                    metric_name="add_success_rate",
-                    current_value=metrics.add_success_rate,
-                    threshold=self.THRESHOLDS["min_success_rate"],
-                    timestamp=metrics.collected_at,
-                ))
+                alerts.append(
+                    HealthAlert(
+                        severity="critical",
+                        message=f"Add success rate below threshold: {metrics.add_success_rate:.2f}",
+                        metric_name="add_success_rate",
+                        current_value=metrics.add_success_rate,
+                        threshold=self.THRESHOLDS["min_success_rate"],
+                        timestamp=metrics.collected_at,
+                    )
+                )
 
         # Check operation times
         if metrics.total_adds > 0:
             if metrics.avg_add_time > self.THRESHOLDS["max_avg_time"]:
-                alerts.append(HealthAlert(
-                    severity="warning",
-                    message=f"Add operation time slow: {metrics.avg_add_time:.2f}s",
-                    metric_name="avg_add_time",
-                    current_value=metrics.avg_add_time,
-                    threshold=self.THRESHOLDS["max_avg_time"],
-                    timestamp=metrics.collected_at,
-                ))
+                alerts.append(
+                    HealthAlert(
+                        severity="warning",
+                        message=f"Add operation time slow: {metrics.avg_add_time:.2f}s",
+                        metric_name="avg_add_time",
+                        current_value=metrics.avg_add_time,
+                        threshold=self.THRESHOLDS["max_avg_time"],
+                        timestamp=metrics.collected_at,
+                    )
+                )
 
         # Check for declining trends
         if metrics.overall_trend == "declining":
-            alerts.append(HealthAlert(
-                severity="warning",
-                message=f"Overall system performance is declining",
-                metric_name="overall_trend",
-                current_value=0.0,
-                threshold=0.0,
-                timestamp=metrics.collected_at,
-            ))
+            alerts.append(
+                HealthAlert(
+                    severity="warning",
+                    message=f"Overall system performance is declining",
+                    metric_name="overall_trend",
+                    current_value=0.0,
+                    threshold=0.0,
+                    timestamp=metrics.collected_at,
+                )
+            )
 
         return alerts
 
@@ -131,10 +139,10 @@ class HealthMonitor:
 
         # Check if we have enough data
         total_ops = (
-            metrics.total_adds +
-            metrics.total_updates +
-            metrics.total_deletes +
-            metrics.total_searches
+            metrics.total_adds
+            + metrics.total_updates
+            + metrics.total_deletes
+            + metrics.total_searches
         )
 
         if total_ops < self.THRESHOLDS["min_operation_count"]:
@@ -143,10 +151,10 @@ class HealthMonitor:
 
         # Check overall success rate
         total_success = (
-            metrics.add_success_rate +
-            metrics.update_success_rate +
-            metrics.delete_success_rate +
-            metrics.search_success_rate
+            metrics.add_success_rate
+            + metrics.update_success_rate
+            + metrics.delete_success_rate
+            + metrics.search_success_rate
         ) / 4
 
         if total_success >= self.THRESHOLDS["min_success_rate"]:

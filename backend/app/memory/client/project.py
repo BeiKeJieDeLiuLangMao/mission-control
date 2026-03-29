@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.memory.client.utils import api_error_handler
 from app.memory.core.telemetry import capture_client_event
+
 # Exception classes are referenced in docstrings only
 
 logger = logging.getLogger(__name__)

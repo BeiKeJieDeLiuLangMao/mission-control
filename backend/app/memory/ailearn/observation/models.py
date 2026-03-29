@@ -4,16 +4,17 @@ Data models for observations.
 ECC-inspired observation data structures.
 """
 
+import json
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-import uuid
-import json
 
 
 class ObservationType(Enum):
     """Types of observation events."""
+
     ADD_INITIATED = "ADD_INITIATED"
     ADD_COMPLETED = "ADD_COMPLETED"
     UPDATE_INITIATED = "UPDATE_INITIATED"
@@ -32,6 +33,7 @@ class Observation:
 
     Similar to ECC's observation structure but adapted for memory operations.
     """
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = field(default_factory=lambda: datetime.utcnow())
     event_type: ObservationType = ObservationType.ADD_INITIATED
@@ -92,6 +94,7 @@ class ProjectInfo:
 
     ECC-style project detection using Git remote URL hash.
     """
+
     project_id: str
     project_name: str
     git_remote_url: Optional[str] = None

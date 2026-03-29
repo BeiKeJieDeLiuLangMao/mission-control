@@ -136,6 +136,7 @@ class FileObservationStore(ObservationStore):
             for line in f:
                 if line.strip():
                     import json
+
                     data = json.loads(line)
                     obs = Observation.from_dict(data)
                     observations.append(obs)
@@ -222,5 +223,6 @@ class FileObservationStore(ObservationStore):
                 for line in f:
                     if line.strip():
                         import json
+
                         data = json.loads(line)
                         yield Observation.from_dict(data)

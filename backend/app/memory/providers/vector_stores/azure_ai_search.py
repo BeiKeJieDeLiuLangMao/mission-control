@@ -181,7 +181,8 @@ class AzureAISearch(VectorStoreBase):
         """
         logger.info(f"Inserting {len(vectors)} vectors into index {self.index_name}")
         documents = [
-            self._generate_document(vector, payload, id) for id, vector, payload in zip(ids, vectors, payloads)
+            self._generate_document(vector, payload, id)
+            for id, vector, payload in zip(ids, vectors, payloads)
         ]
         response = self.search_client.upload_documents(documents)
         for doc in response:
@@ -243,7 +244,9 @@ class AzureAISearch(VectorStoreBase):
         results = []
         for result in search_results:
             payload = json.loads(extract_json(result["payload"]))
-            results.append(OutputData(id=result["id"], score=result["@search.score"], payload=payload))
+            results.append(
+                OutputData(id=result["id"], score=result["@search.score"], payload=payload)
+            )
         return results
 
     def delete(self, vector_id):
@@ -342,11 +345,15 @@ class AzureAISearch(VectorStoreBase):
         if filters:
             filter_expression = self._build_filter_expression(filters)
 
-        search_results = self.search_client.search(search_text="*", filter=filter_expression, top=limit)
+        search_results = self.search_client.search(
+            search_text="*", filter=filter_expression, top=limit
+        )
         results = []
         for result in search_results:
             payload = json.loads(extract_json(result["payload"]))
-            results.append(OutputData(id=result["id"], score=result["@search.score"], payload=payload))
+            results.append(
+                OutputData(id=result["id"], score=result["@search.score"], payload=payload)
+            )
         return [results]
 
     def __del__(self):

@@ -21,16 +21,16 @@ import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .amendment import AmendmentProposer
+from .evolution import EvolutionTracker, HealthMonitor, MetricsCollector
+from .instincts import InstinctApplier, InstinctRegistry
+from .learning import PatternDetector, SkillExtractor
 from .observation import (
-    MemoryObservationHook,
     FileObservationStore,
+    MemoryObservationHook,
     ProjectDetector,
     enable_observation,
 )
-from .learning import PatternDetector, SkillExtractor
-from .evolution import HealthMonitor, MetricsCollector, EvolutionTracker
-from .amendment import AmendmentProposer
-from .instincts import InstinctRegistry, InstinctApplier
 
 
 class Mem0AILearn:
@@ -66,6 +66,7 @@ class Mem0AILearn:
         # Storage setup
         if storage_path is None:
             import os
+
             storage_path = os.path.expanduser("~/.mem0/ailearn")
 
         self.storage_path = Path(storage_path)

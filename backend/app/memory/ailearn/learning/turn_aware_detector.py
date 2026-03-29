@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from ..observation.models import Observation, ObservationType
-from .pattern import Pattern, PatternType, PatternEvidence
+from .pattern import Pattern, PatternEvidence, PatternType
 
 logger = logging.getLogger(__name__)
 
@@ -106,14 +106,16 @@ class TurnAwarePatternDetector:
                 }
             }
         """
-        sessions = defaultdict(lambda: {
-            "turns": [],
-            "observations": [],
-            "start_time": None,
-            "end_time": None,
-            "user_id": None,
-            "agent_id": None,
-        })
+        sessions = defaultdict(
+            lambda: {
+                "turns": [],
+                "observations": [],
+                "start_time": None,
+                "end_time": None,
+                "user_id": None,
+                "agent_id": None,
+            }
+        )
 
         # Group turns by session
         for turn in turns:
@@ -207,10 +209,7 @@ class TurnAwarePatternDetector:
         transactions = []
 
         # Sort by time
-        sorted_turns = sorted(
-            turns,
-            key=lambda t: datetime.fromisoformat(t.get("created_at", ""))
-        )
+        sorted_turns = sorted(turns, key=lambda t: datetime.fromisoformat(t.get("created_at", "")))
 
         current_transaction = {
             "turns": [],
@@ -299,11 +298,7 @@ class TurnAwarePatternDetector:
     def _extract_user_messages(self, turn: Dict) -> str:
         """Extract all user messages from a turn."""
         messages = turn.get("messages", [])
-        user_messages = [
-            m.get("content", "")
-            for m in messages
-            if m.get("role") == "user"
-        ]
+        user_messages = [m.get("content", "") for m in messages if m.get("role") == "user"]
         return " ".join(user_messages)
 
     def _find_observations_for_turn(
@@ -368,10 +363,7 @@ class TurnAwarePatternDetector:
         observations = transaction["observations"]
 
         # Extract user intents
-        user_messages = [
-            self._extract_user_messages(turn)
-            for turn in turns
-        ]
+        user_messages = [self._extract_user_messages(turn) for turn in turns]
 
         # Extract memory operations
         memory_operations = [
@@ -449,10 +441,12 @@ class TurnAwarePatternDetector:
                 observation_ids=[],
                 example_count=1,
                 confidence_distribution=[0.5],
-                context_snippets=[{
-                    "transaction_summary": summary,
-                    "turn_count": len(transaction["turns"]),
-                }],
+                context_snippets=[
+                    {
+                        "transaction_summary": summary,
+                        "turn_count": len(transaction["turns"]),
+                    }
+                ],
             ),
             pattern_content={
                 "sequence": sequence,

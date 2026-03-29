@@ -71,6 +71,7 @@ async def fetch_recent_turns(session: AsyncSession, limit: int = 100) -> List[di
 
 # ------ Response Models ------
 
+
 class AILearnStatus(BaseModel):
     is_running: bool
     observations_count: int
@@ -125,6 +126,7 @@ class AILearnStartResponse(BaseModel):
 
 # ------ Background Task ------
 
+
 async def background_learning_task(
     interval_minutes: int,
     max_observations: int,
@@ -168,6 +170,7 @@ async def background_learning_task(
 
 
 # ------ API Endpoints ------
+
 
 @router.get("/status", response_model=AILearnStatus)
 async def get_ailearn_status():
@@ -278,26 +281,85 @@ async def trigger_analysis(session: AsyncSession = Depends(get_session)):
 
 @router.get("/patterns", response_model=List[PatternInfo])
 async def get_patterns(limit: int = Query(10, ge=1, le=100)):
-    return []
+    """获取检测到的模式。AILearn 未运行时返回空列表。"""
+    if _ailearn_instance is None:
+        return []
+    try:
+        raw = _ailearn_instance.get_patterns(limit=limit)
+        return [
+            PatternInfo(
+                id=p.get("id", ""),
+                pattern_type=p.get("pattern_type", p.get("type", "unknown")),
+                name=p.get("name", ""),
+                description=p.get("description", ""),
+                confidence=p.get("confidence", 0.0),
+                frequency=p.get("frequency", p.get("observation_count", 0)),
+                extracted_at=p.get("extracted_at", p.get("first_seen", datetime.now(UTC))),
+            )
+            for p in raw
+        ]
+    except Exception as e:
+        logger.warning(f"Failed to get patterns: {e}")
+        return []
 
 
 @router.get("/skills", response_model=List[SkillInfo])
 async def get_skills(limit: int = Query(10, ge=1, le=100)):
-    return []
+    """获取提取的技能。AILearn 未运行时返回空列表。"""
+    if _ailearn_instance is None:
+        return []
+    try:
+        raw = _ailearn_instance.get_skills(limit=limit)
+        return [
+            SkillInfo(
+                id=s.get("id", ""),
+                name=s.get("name", ""),
+                description=s.get("description", ""),
+                trigger_phrases=s.get("trigger_phrases", []),
+                confidence=s.get("confidence", 0.0),
+                extracted_at=s.get("extracted_at", datetime.now(UTC)),
+            )
+            for s in raw
+        ]
+    except Exception as e:
+        logger.warning(f"Failed to get skills: {e}")
+        return []
 
 
 @router.get("/amendments", response_model=List[AmendmentInfo])
 async def get_amendments(limit: int = Query(10, ge=1, le=100)):
-    return []
+    """获取修订提案。AILearn 未运行时返回空列表。"""
+    if _ailearn_instance is None:
+        return []
+    try:
+        raw = _ailearn_instance.get_amendments(limit=limit)
+        return [
+            AmendmentInfo(
+                id=a.get("id", ""),
+                amendment_type=a.get("amendment_type", a.get("type", "unknown")),
+                memory_id=a.get("memory_id", ""),
+                reasoning=a.get("reasoning", ""),
+                confidence=a.get("confidence", 0.0),
+                expected_impact=a.get("expected_impact", 0.0),
+                created_at=a.get("created_at", datetime.now(UTC)),
+            )
+            for a in raw
+        ]
+    except Exception as e:
+        logger.warning(f"Failed to get amendments: {e}")
+        return []
 
 
 @router.post("/amendments/{amendment_id}/apply")
 async def apply_amendment(amendment_id: str):
+    """应用修订提案。"""
     if _ailearn_instance is None:
         raise HTTPException(status_code=400, detail="AI Learning is not running")
-    return {"message": f"Amendment {amendment_id} applied successfully"}
+    result = await _ailearn_instance.apply_amendment(amendment_id, {})
+    return {"message": f"Amendment {amendment_id} applied", "result": result}
 
 
 @router.delete("/amendments/{amendment_id}")
 async def reject_amendment(amendment_id: str):
+    """拒绝修订提案。"""
     return {"message": f"Amendment {amendment_id} rejected"}

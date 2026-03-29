@@ -17,7 +17,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -75,7 +81,8 @@ function formatConfidence(confidence: number): string {
 function getConfidenceColor(confidence: number): string {
   if (confidence >= 0.95) return "text-green-600 bg-green-50 border-green-200";
   if (confidence >= 0.85) return "text-blue-600 bg-blue-50 border-blue-200";
-  if (confidence >= 0.7) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+  if (confidence >= 0.7)
+    return "text-yellow-600 bg-yellow-50 border-yellow-200";
   return "text-slate-600 bg-slate-50 border-slate-200";
 }
 
@@ -107,7 +114,15 @@ function getPatternTypeIcon(type: string) {
 
 // ------ Components ------
 
-function StatusCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: any }) {
+function StatusCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number | string;
+  icon: any;
+}) {
   return (
     <Card>
       <CardContent className="p-4">
@@ -134,7 +149,10 @@ function PatternCard({ pattern }: { pattern: PatternInfo }) {
             {getPatternTypeIcon(pattern.pattern_type)}
             <CardTitle className="text-base">{pattern.name}</CardTitle>
           </div>
-          <Badge variant="outline" className={getConfidenceColor(pattern.confidence)}>
+          <Badge
+            variant="outline"
+            className={getConfidenceColor(pattern.confidence)}
+          >
             {formatConfidence(pattern.confidence)}
           </Badge>
         </div>
@@ -155,7 +173,10 @@ function SkillCard({ skill }: { skill: SkillInfo }) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <CardTitle className="text-base">{skill.name}</CardTitle>
-          <Badge variant="outline" className={getConfidenceColor(skill.confidence)}>
+          <Badge
+            variant="outline"
+            className={getConfidenceColor(skill.confidence)}
+          >
             {formatConfidence(skill.confidence)}
           </Badge>
         </div>
@@ -177,8 +198,14 @@ function SkillCard({ skill }: { skill: SkillInfo }) {
 }
 
 function AmendmentCard({ amendment }: { amendment: AmendmentInfo }) {
-  const impactColor = amendment.expected_impact > 0 ? "text-green-600" : "text-red-600";
-  const impactLabel = amendment.expected_impact > 0 ? "正面" : amendment.expected_impact < 0 ? "负面" : "中性";
+  const impactColor =
+    amendment.expected_impact > 0 ? "text-green-600" : "text-red-600";
+  const impactLabel =
+    amendment.expected_impact > 0
+      ? "正面"
+      : amendment.expected_impact < 0
+        ? "负面"
+        : "中性";
 
   return (
     <Card className="hover:shadow-md transition">
@@ -186,9 +213,14 @@ function AmendmentCard({ amendment }: { amendment: AmendmentInfo }) {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <FileEdit className="h-4 w-4 text-slate-500" />
-            <CardTitle className="text-base">{amendment.amendment_type.replace(/_/g, " ")}</CardTitle>
+            <CardTitle className="text-base">
+              {amendment.amendment_type.replace(/_/g, " ")}
+            </CardTitle>
           </div>
-          <Badge variant="outline" className={getConfidenceColor(amendment.confidence)}>
+          <Badge
+            variant="outline"
+            className={getConfidenceColor(amendment.confidence)}
+          >
             {formatConfidence(amendment.confidence)}
           </Badge>
         </div>
@@ -201,7 +233,9 @@ function AmendmentCard({ amendment }: { amendment: AmendmentInfo }) {
         <div className="flex items-center gap-2 text-xs">
           <span className="text-slate-500">预期影响:</span>
           <span className={`font-medium ${impactColor}`}>{impactLabel}</span>
-          <span className="text-slate-400">({(amendment.expected_impact * 100).toFixed(0)}%)</span>
+          <span className="text-slate-400">
+            ({(amendment.expected_impact * 100).toFixed(0)}%)
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -234,8 +268,11 @@ export function AILearnView() {
   // Fetch patterns
   const fetchPatterns = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/v1/ailearn/patterns?limit=10`);
-      if (!res.ok) throw new Error(`Failed to fetch patterns: ${res.statusText}`);
+      const res = await fetch(
+        `${getApiBaseUrl()}/api/v1/ailearn/patterns?limit=10`,
+      );
+      if (!res.ok)
+        throw new Error(`Failed to fetch patterns: ${res.statusText}`);
       const data = await res.json();
       setPatterns(data);
     } catch (e) {
@@ -246,7 +283,9 @@ export function AILearnView() {
   // Fetch skills
   const fetchSkills = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/v1/ailearn/skills?limit=10`);
+      const res = await fetch(
+        `${getApiBaseUrl()}/api/v1/ailearn/skills?limit=10`,
+      );
       if (!res.ok) throw new Error(`Failed to fetch skills: ${res.statusText}`);
       const data = await res.json();
       setSkills(data);
@@ -258,8 +297,11 @@ export function AILearnView() {
   // Fetch amendments
   const fetchAmendments = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/v1/ailearn/amendments?limit=10`);
-      if (!res.ok) throw new Error(`Failed to fetch amendments: ${res.statusText}`);
+      const res = await fetch(
+        `${getApiBaseUrl()}/api/v1/ailearn/amendments?limit=10`,
+      );
+      if (!res.ok)
+        throw new Error(`Failed to fetch amendments: ${res.statusText}`);
       const data = await res.json();
       setAmendments(data);
     } catch (e) {
@@ -271,7 +313,12 @@ export function AILearnView() {
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
-      await Promise.all([fetchStatus(), fetchPatterns(), fetchSkills(), fetchAmendments()]);
+      await Promise.all([
+        fetchStatus(),
+        fetchPatterns(),
+        fetchSkills(),
+        fetchAmendments(),
+      ]);
       setLoading(false);
     };
     loadAll();
@@ -295,7 +342,9 @@ export function AILearnView() {
   const handleToggleAILearn = async () => {
     try {
       if (status?.is_running) {
-        await fetch(`${getApiBaseUrl()}/api/v1/ailearn/stop`, { method: "POST" });
+        await fetch(`${getApiBaseUrl()}/api/v1/ailearn/stop`, {
+          method: "POST",
+        });
       } else {
         await fetch(`${getApiBaseUrl()}/api/v1/ailearn/start`, {
           method: "POST",
@@ -317,8 +366,15 @@ export function AILearnView() {
   // Trigger manual analysis
   const handleTriggerAnalysis = async () => {
     try {
-      await fetch(`${getApiBaseUrl()}/api/v1/ailearn/analyze`, { method: "POST" });
-      await Promise.all([fetchStatus(), fetchPatterns(), fetchSkills(), fetchAmendments()]);
+      await fetch(`${getApiBaseUrl()}/api/v1/ailearn/analyze`, {
+        method: "POST",
+      });
+      await Promise.all([
+        fetchStatus(),
+        fetchPatterns(),
+        fetchSkills(),
+        fetchAmendments(),
+      ]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to trigger analysis");
     }
@@ -349,7 +405,9 @@ export function AILearnView() {
           <Brain className="h-6 w-6 text-purple-500" />
           <div>
             <h2 className="text-2xl font-bold text-slate-900">AI 自动学习</h2>
-            <p className="text-sm text-slate-500">观察记忆操作，自动提取模式和技能</p>
+            <p className="text-sm text-slate-500">
+              观察记忆操作，自动提取模式和技能
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -359,7 +417,10 @@ export function AILearnView() {
               onCheckedChange={setAutoRefresh}
               id="auto-refresh"
             />
-            <label htmlFor="auto-refresh" className="text-sm text-slate-600 cursor-pointer">
+            <label
+              htmlFor="auto-refresh"
+              className="text-sm text-slate-600 cursor-pointer"
+            >
               自动刷新
             </label>
           </div>
@@ -367,7 +428,11 @@ export function AILearnView() {
             variant="outline"
             size="sm"
             onClick={handleToggleAILearn}
-            className={status?.is_running ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+            className={
+              status?.is_running
+                ? "text-red-600 hover:text-red-700"
+                : "text-green-600 hover:text-green-700"
+            }
           >
             {status?.is_running ? (
               <>
@@ -402,16 +467,30 @@ export function AILearnView() {
       {/* Status Cards */}
       {status && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatusCard label="观察数据" value={status.observations_count} icon={Brain} />
-          <StatusCard label="检测模式" value={status.patterns_detected} icon={Zap} />
-          <StatusCard label="提取技能" value={status.skills_extracted} icon={Lightbulb} />
+          <StatusCard
+            label="观察数据"
+            value={status.observations_count}
+            icon={Brain}
+          />
+          <StatusCard
+            label="检测模式"
+            value={status.patterns_detected}
+            icon={Zap}
+          />
+          <StatusCard
+            label="提取技能"
+            value={status.skills_extracted}
+            icon={Lightbulb}
+          />
           <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-4">
             <div className="rounded-lg bg-slate-50 p-2">
               {getHealthStatusIcon(status.health_status)}
             </div>
             <div>
               <p className="text-sm text-slate-600">系统状态</p>
-              <p className="text-lg font-semibold text-slate-900 capitalize">{status.health_status}</p>
+              <p className="text-lg font-semibold text-slate-900 capitalize">
+                {status.health_status}
+              </p>
             </div>
           </div>
         </div>
@@ -431,7 +510,9 @@ export function AILearnView() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Zap className="h-12 w-12 text-slate-300 mb-4" />
                 <p className="text-slate-500">暂无检测到的模式</p>
-                <p className="text-sm text-slate-400 mt-1">AI 学习系统正在观察记忆操作...</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  AI 学习系统正在观察记忆操作...
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -449,7 +530,9 @@ export function AILearnView() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Lightbulb className="h-12 w-12 text-slate-300 mb-4" />
                 <p className="text-slate-500">暂无提取的技能</p>
-                <p className="text-sm text-slate-400 mt-1">技能将从高置信度模式中自动生成...</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  技能将从高置信度模式中自动生成...
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -467,7 +550,9 @@ export function AILearnView() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <FileEdit className="h-12 w-12 text-slate-300 mb-4" />
                 <p className="text-slate-500">暂无修改提议</p>
-                <p className="text-sm text-slate-400 mt-1">AI 学习系统会根据模式变化提议修改记忆...</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  AI 学习系统会根据模式变化提议修改记忆...
+                </p>
               </CardContent>
             </Card>
           ) : (

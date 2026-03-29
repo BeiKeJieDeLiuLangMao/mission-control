@@ -1,5 +1,7 @@
 """Model exports for SQLAlchemy/SQLModel metadata discovery."""
 
+# Memory models
+from app.memory.models import Turn, VectorMemory
 from app.models.activity_events import ActivityEvent
 from app.models.agents import Agent
 from app.models.approval_task_links import ApprovalTaskLink
@@ -29,9 +31,6 @@ from app.models.task_dependencies import TaskDependency
 from app.models.task_fingerprints import TaskFingerprint
 from app.models.tasks import Task
 from app.models.users import User
-
-# Memory models
-from app.memory.models import Turn, VectorMemory
 
 __all__ = [
     "ActivityEvent",

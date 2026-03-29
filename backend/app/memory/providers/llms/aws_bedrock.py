@@ -7,18 +7,34 @@ try:
     import boto3
     from botocore.exceptions import ClientError, NoCredentialsError
 except ImportError:
-    raise ImportError("The 'boto3' library is required. Please install it using 'pip install boto3'.")
+    raise ImportError(
+        "The 'boto3' library is required. Please install it using 'pip install boto3'."
+    )
 
-from app.memory.configs.llms.base import BaseLlmConfig
 from app.memory.configs.llms.aws_bedrock import AWSBedrockConfig
-from app.memory.providers.llms.base import LLMBase
+from app.memory.configs.llms.base import BaseLlmConfig
 from app.memory.core.utils import extract_json
+from app.memory.providers.llms.base import LLMBase
 
 logger = logging.getLogger(__name__)
 
 PROVIDERS = [
-    "ai21", "amazon", "anthropic", "cohere", "meta", "mistral", "stability", "writer", 
-    "deepseek", "gpt-oss", "perplexity", "snowflake", "titan", "command", "j2", "llama"
+    "ai21",
+    "amazon",
+    "anthropic",
+    "cohere",
+    "meta",
+    "mistral",
+    "stability",
+    "writer",
+    "deepseek",
+    "gpt-oss",
+    "perplexity",
+    "snowflake",
+    "titan",
+    "command",
+    "j2",
+    "llama",
 ]
 
 
@@ -109,7 +125,9 @@ class AWSBedrockLLM(LLMBase):
 
             # Check if our model is available
             if self.config.model not in self.available_models:
-                logger.warning(f"Model {self.config.model} may not be available in region {self.config.aws_region}")
+                logger.warning(
+                    f"Model {self.config.model} may not be available in region {self.config.aws_region}"
+                )
                 logger.info(f"Available models: {', '.join(self.available_models[:5])}...")
 
         except Exception as e:
@@ -121,7 +139,13 @@ class AWSBedrockLLM(LLMBase):
         # Determine capabilities based on provider and model
         self.supports_tools = self.provider in ["anthropic", "cohere", "amazon"]
         self.supports_vision = self.provider in ["anthropic", "amazon", "meta", "mistral"]
-        self.supports_streaming = self.provider in ["anthropic", "cohere", "mistral", "amazon", "meta"]
+        self.supports_streaming = self.provider in [
+            "anthropic",
+            "cohere",
+            "mistral",
+            "amazon",
+            "meta",
+        ]
 
         # Set message formatting method
         if self.provider == "anthropic":
@@ -137,7 +161,9 @@ class AWSBedrockLLM(LLMBase):
         else:
             self._format_messages = self._format_messages_generic
 
-    def _format_messages_anthropic(self, messages: List[Dict[str, str]]) -> tuple[List[Dict[str, Any]], Optional[str]]:
+    def _format_messages_anthropic(
+        self, messages: List[Dict[str, str]]
+    ) -> tuple[List[Dict[str, Any]], Optional[str]]:
         """Format messages for Anthropic models."""
         formatted_messages = []
         system_message = None
@@ -173,11 +199,11 @@ class AWSBedrockLLM(LLMBase):
     def _format_messages_amazon(self, messages: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """Format messages for Amazon models (including Nova)."""
         formatted_messages = []
-        
+
         for message in messages:
             role = message["role"]
             content = message["content"]
-            
+
             if role == "system":
                 # Amazon models support system messages
                 formatted_messages.append({"role": "system", "content": content})
@@ -185,28 +211,28 @@ class AWSBedrockLLM(LLMBase):
                 formatted_messages.append({"role": "user", "content": content})
             elif role == "assistant":
                 formatted_messages.append({"role": "assistant", "content": content})
-        
+
         return formatted_messages
 
     def _format_messages_meta(self, messages: List[Dict[str, str]]) -> str:
         """Format messages for Meta models."""
         formatted_messages = []
-        
+
         for message in messages:
             role = message["role"].capitalize()
             content = message["content"]
             formatted_messages.append(f"{role}: {content}")
-        
+
         return "\n".join(formatted_messages)
 
     def _format_messages_mistral(self, messages: List[Dict[str, str]]) -> List[Dict[str, Any]]:
         """Format messages for Mistral models."""
         formatted_messages = []
-        
+
         for message in messages:
             role = message["role"]
             content = message["content"]
-            
+
             if role == "system":
                 # Mistral supports system messages
                 formatted_messages.append({"role": "system", "content": content})
@@ -214,7 +240,7 @@ class AWSBedrockLLM(LLMBase):
                 formatted_messages.append({"role": "user", "content": content})
             elif role == "assistant":
                 formatted_messages.append({"role": "assistant", "content": content})
-        
+
         return formatted_messages
 
     def _format_messages_generic(self, messages: List[Dict[str, str]]) -> str:
@@ -372,7 +398,9 @@ class AWSBedrockLLM(LLMBase):
                         processed_response["tool_calls"].append(
                             {
                                 "name": item["toolUse"]["name"],
-                                "arguments": json.loads(extract_json(json.dumps(item["toolUse"]["input"]))),
+                                "arguments": json.loads(
+                                    extract_json(json.dumps(item["toolUse"]["input"]))
+                                ),
                             }
                         )
 
@@ -404,7 +432,11 @@ class AWSBedrockLLM(LLMBase):
             elif self.provider == "cohere":
                 return response_json.get("generations", [{"text": ""}])[0].get("text", "")
             elif self.provider == "ai21":
-                return response_json.get("completions", [{"data", {"text": ""}}])[0].get("data", {}).get("text", "")
+                return (
+                    response_json.get("completions", [{"data", {"text": ""}}])[0]
+                    .get("data", {})
+                    .get("text", "")
+                )
             else:
                 # Generic parsing - try common response fields
                 for field in ["content", "text", "completion", "generation"]:
@@ -470,16 +502,16 @@ class AWSBedrockLLM(LLMBase):
                     "toolSpec": {
                         "name": func["name"],
                         "description": func.get("description", ""),
-                        "inputSchema": {
-                            "json": func.get("parameters", {})
-                        }
+                        "inputSchema": {"json": func.get("parameters", {})},
                     }
                 }
                 converse_tools.append(converse_tool)
 
         return converse_tools
 
-    def _generate_with_tools(self, messages: List[Dict[str, str]], tools: List[Dict], stream: bool = False) -> Dict[str, Any]:
+    def _generate_with_tools(
+        self, messages: List[Dict[str, str]], tools: List[Dict], stream: bool = False
+    ) -> Dict[str, Any]:
         """Generate response with tool calling support using correct message format."""
         # Format messages for tool-enabled models
         system_message = None
@@ -505,7 +537,7 @@ class AWSBedrockLLM(LLMBase):
                 "maxTokens": self.model_config.get("max_tokens", 2000),
                 "temperature": self.model_config.get("temperature", 0.1),
                 "topP": self.model_config.get("top_p", 0.9),
-            }
+            },
         }
 
         # Add system message if present (for Anthropic)
@@ -535,7 +567,7 @@ class AWSBedrockLLM(LLMBase):
                     "maxTokens": self.model_config.get("max_tokens", 2000),
                     "temperature": self.model_config.get("temperature", 0.1),
                     "topP": self.model_config.get("top_p", 0.9),
-                }
+                },
             }
 
             # Add system message if present
@@ -546,10 +578,10 @@ class AWSBedrockLLM(LLMBase):
             response = self.client.converse(**converse_params)
 
             # Parse Converse API response
-            if hasattr(response, 'output') and hasattr(response.output, 'message'):
+            if hasattr(response, "output") and hasattr(response.output, "message"):
                 return response.output.message.content[0].text
-            elif 'output' in response and 'message' in response['output']:
-                return response['output']['message']['content'][0]['text']
+            elif "output" in response and "message" in response["output"]:
+                return response["output"]["message"]["content"][0]["text"]
             else:
                 return str(response)
 
@@ -562,7 +594,7 @@ class AWSBedrockLLM(LLMBase):
                 "temperature": self.model_config.get("temperature", 0.1),
                 "top_p": self.model_config.get("top_p", 0.9),
             }
-            
+
             # Use converse API for Nova models
             response = self.client.converse(
                 modelId=self.config.model,
@@ -571,9 +603,9 @@ class AWSBedrockLLM(LLMBase):
                     "maxTokens": input_body["max_tokens"],
                     "temperature": input_body["temperature"],
                     "topP": input_body["top_p"],
-                }
+                },
             )
-            
+
             return self._parse_response(response)
         else:
             # For other providers and legacy Amazon models (like Titan)
@@ -610,14 +642,18 @@ class AWSBedrockLLM(LLMBase):
                     {
                         "model_id": model["modelId"],
                         "provider": provider,
-                        "model_name": model["modelId"].split(".", 1)[1]
-                        if "." in model["modelId"]
-                        else model["modelId"],
+                        "model_name": (
+                            model["modelId"].split(".", 1)[1]
+                            if "." in model["modelId"]
+                            else model["modelId"]
+                        ),
                         "modelArn": model.get("modelArn", ""),
                         "providerName": model.get("providerName", ""),
                         "inputModalities": model.get("inputModalities", []),
                         "outputModalities": model.get("outputModalities", []),
-                        "responseStreamingSupported": model.get("responseStreamingSupported", False),
+                        "responseStreamingSupported": model.get(
+                            "responseStreamingSupported", False
+                        ),
                     }
                 )
 
@@ -649,7 +685,7 @@ class AWSBedrockLLM(LLMBase):
                 self.client.converse(
                     modelId=self.config.model,
                     messages=test_messages,
-                    inferenceConfig={"maxTokens": 10}
+                    inferenceConfig={"maxTokens": 10},
                 )
             else:
                 # Test other models with invoke_model

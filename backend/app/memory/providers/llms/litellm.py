@@ -4,11 +4,13 @@ from typing import Dict, List, Optional
 try:
     import litellm
 except ImportError:
-    raise ImportError("The 'litellm' library is required. Please install it using 'pip install litellm'.")
+    raise ImportError(
+        "The 'litellm' library is required. Please install it using 'pip install litellm'."
+    )
 
 from app.memory.configs.llms.base import BaseLlmConfig
-from app.memory.providers.llms.base import LLMBase
 from app.memory.core.utils import extract_json
+from app.memory.providers.llms.base import LLMBase
 
 
 class LiteLLM(LLMBase):
@@ -68,7 +70,9 @@ class LiteLLM(LLMBase):
             str: The generated response.
         """
         if not litellm.supports_function_calling(self.config.model):
-            raise ValueError(f"Model '{self.config.model}' in litellm does not support function calling.")
+            raise ValueError(
+                f"Model '{self.config.model}' in litellm does not support function calling."
+            )
 
         params = {
             "model": self.config.model,

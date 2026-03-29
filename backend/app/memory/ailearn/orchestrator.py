@@ -9,12 +9,12 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .observation.models import Observation
-from .learning.turn_aware_detector import TurnAwarePatternDetector
-from .learning.enhanced_skill_extractor import EnhancedSkillExtractor
 from .amendment.proposer import AmendmentProposer
 from .evolution.health_monitor import HealthMonitor
 from .evolution.metrics import MetricsCollector
+from .learning.enhanced_skill_extractor import EnhancedSkillExtractor
+from .learning.turn_aware_detector import TurnAwarePatternDetector
+from .observation.models import Observation
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,8 @@ class EnhancedAILearn:
             auto_learn: Enable automatic learning
             auto_amend: Enable automatic amendments
         """
-        from pathlib import Path
         import os
+        from pathlib import Path
 
         # Storage setup
         if storage_path is None:
@@ -67,6 +67,7 @@ class EnhancedAILearn:
         # Project detection
         if project_id is None:
             from .observation.collectors.project_detector import ProjectDetector
+
             detector = ProjectDetector()
             project_info = detector.detect()
             self.project_id = project_info.project_id
@@ -89,9 +90,14 @@ class EnhancedAILearn:
 
     def _init_components(self):
         """Initialize learning components."""
+        # Last analysis results cache
+        self._last_patterns: List[Dict[str, Any]] = []
+        self._last_skills: List[Dict[str, Any]] = []
+        self._last_amendments: List[Dict[str, Any]] = []
+
         from .observation import (
-            MemoryObservationHook,
             FileObservationStore,
+            MemoryObservationHook,
         )
 
         # Observation layer
@@ -169,15 +175,20 @@ class EnhancedAILearn:
             if pattern.confidence >= 0.95:
                 await self._promote_to_instinct(pattern)
 
+        # Cache results for API access
+        self._last_patterns = [p.to_dict() for p in patterns]
+        self._last_skills = [s.to_dict() for s in skills]
+        self._last_amendments = [a.to_dict() for a in proposals]
+
         return {
             "observations_analyzed": len(observations),
             "turns_analyzed": len(turns),
             "patterns_detected": len(patterns),
             "skills_extracted": len(skills),
             "amendments_proposed": len(proposals),
-            "patterns": [p.to_dict() for p in patterns[:10]],
-            "skills": [s.to_dict() for s in skills[:10]],
-            "amendments": [a.to_dict() for a in proposals[:10]],
+            "patterns": self._last_patterns[:10],
+            "skills": self._last_skills[:10],
+            "amendments": self._last_amendments[:10],
         }
 
     def _group_turns_by_session(
@@ -198,6 +209,18 @@ class EnhancedAILearn:
         """Promote high-confidence pattern to instinct."""
         # TODO: Implement instinct promotion
         pass
+
+    def get_patterns(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取最近一次分析检测到的 patterns。"""
+        return self._last_patterns[:limit]
+
+    def get_skills(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取最近一次分析提取的 skills。"""
+        return self._last_skills[:limit]
+
+    def get_amendments(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取最近一次分析提出的 amendments。"""
+        return self._last_amendments[:limit]
 
     async def get_health_status(self) -> Dict[str, Any]:
         """Get current system health status."""

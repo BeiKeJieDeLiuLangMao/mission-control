@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Dynamically import ForceGraph2D (WebGL, heavy — no SSR)
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
+  ssr: false,
+});
 
 // ------ Types ------
 interface GraphRelation {
@@ -56,32 +58,52 @@ interface GraphData {
 // ------ API ------
 import { getApiBaseUrl } from "@/lib/api-base";
 
-const fetchGraph = async (userId: string, agentId?: string): Promise<GraphResponse> => {
+const fetchGraph = async (
+  userId: string,
+  agentId?: string,
+): Promise<GraphResponse> => {
   const params = new URLSearchParams({ user_id: userId });
   if (agentId) params.set("agent_id", agentId);
-  const res = await fetch(`${getApiBaseUrl()}/api/v1/graph?${params.toString()}`);
+  const res = await fetch(
+    `${getApiBaseUrl()}/api/v1/graph?${params.toString()}`,
+  );
   if (!res.ok) throw new Error(`Graph API failed: ${res.statusText}`);
   return res.json();
 };
 
-const fetchGraphSearch = async (q: string, userId: string, agentId?: string): Promise<GraphResponse> => {
+const fetchGraphSearch = async (
+  q: string,
+  userId: string,
+  agentId?: string,
+): Promise<GraphResponse> => {
   const params = new URLSearchParams({ q, user_id: userId });
   if (agentId) params.set("agent_id", agentId);
-  const res = await fetch(`${getApiBaseUrl()}/api/v1/graph/search?${params.toString()}`);
+  const res = await fetch(
+    `${getApiBaseUrl()}/api/v1/graph/search?${params.toString()}`,
+  );
   if (!res.ok) throw new Error(`Graph search failed: ${res.statusText}`);
   return res.json();
 };
 
-const fetchGraphStats = async (userId: string, agentId?: string): Promise<GraphStats> => {
+const fetchGraphStats = async (
+  userId: string,
+  agentId?: string,
+): Promise<GraphStats> => {
   const params = new URLSearchParams({ user_id: userId });
   if (agentId) params.set("agent_id", agentId);
-  const res = await fetch(`${getApiBaseUrl()}/api/v1/graph/stats?${params.toString()}`);
+  const res = await fetch(
+    `${getApiBaseUrl()}/api/v1/graph/stats?${params.toString()}`,
+  );
   if (!res.ok) throw new Error(`Graph stats API failed: ${res.statusText}`);
   return res.json();
 };
 
-const fetchGraphAgents = async (userId: string): Promise<GraphAgentsResponse> => {
-  const res = await fetch(`${getApiBaseUrl()}/api/v1/graph/agents?user_id=${encodeURIComponent(userId)}`);
+const fetchGraphAgents = async (
+  userId: string,
+): Promise<GraphAgentsResponse> => {
+  const res = await fetch(
+    `${getApiBaseUrl()}/api/v1/graph/agents?user_id=${encodeURIComponent(userId)}`,
+  );
   if (!res.ok) throw new Error(`Graph agents API failed: ${res.statusText}`);
   return res.json();
 };
@@ -89,16 +111,16 @@ const fetchGraphAgents = async (userId: string): Promise<GraphAgentsResponse> =>
 // ------ Source inference (mirrors logic in memories/page.tsx) ------
 const SOURCE_LABELS: Record<string, string> = {
   "claude-code": "Claude Code",
-  "openclaw": "OpenClaw",
-  "manual": "手工",
-  "unknown": "未知",
+  openclaw: "OpenClaw",
+  manual: "手工",
+  unknown: "未知",
 };
 
 const SOURCE_COLORS: Record<string, string> = {
   "claude-code": "bg-purple-100 text-purple-700 border-purple-200",
-  "openclaw": "bg-blue-100 text-blue-700 border-blue-200",
-  "manual": "bg-slate-100 text-slate-700 border-slate-200",
-  "unknown": "bg-gray-100 text-gray-700 border-gray-200",
+  openclaw: "bg-blue-100 text-blue-700 border-blue-200",
+  manual: "bg-slate-100 text-slate-700 border-slate-200",
+  unknown: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
 function inferSourceFromAgent(agentId: string): string {
@@ -110,8 +132,14 @@ function inferSourceFromAgent(agentId: string): string {
 
 // ------ Color by relationship type ------
 const REL_COLORS = [
-  "#3b82f6", "#8b5cf6", "#ec4899", "#10b981",
-  "#f59e0b", "#ef4444", "#06b6d4", "#84cc16",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#06b6d4",
+  "#84cc16",
 ];
 
 function relColor(rel: string): string {
@@ -136,7 +164,11 @@ function buildGraphData(relations: GraphRelation[]): GraphData {
     }
     nodeMap.get(r.source)!.val++;
     nodeMap.get(r.target)!.val++;
-    links.push({ source: r.source, target: r.target, relationship: r.relationship });
+    links.push({
+      source: r.source,
+      target: r.target,
+      relationship: r.relationship,
+    });
   }
 
   return { nodes: Array.from(nodeMap.values()), links };
@@ -167,7 +199,9 @@ function MiniStatCard({
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className={cn("text-lg font-bold", accent ?? "text-slate-800")}>{value.toLocaleString()}</p>
+      <p className={cn("text-lg font-bold", accent ?? "text-slate-800")}>
+        {value.toLocaleString()}
+      </p>
     </div>
   );
 }
@@ -176,13 +210,18 @@ function MiniStatCard({
 export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
-  const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
+  const [graphData, setGraphData] = useState<GraphData>({
+    nodes: [],
+    links: [],
+  });
   const [stats, setStats] = useState<GraphStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filter state
-  const [agentList, setAgentList] = useState<Array<{ agent_id: string; memory_count: number }>>([]);
+  const [agentList, setAgentList] = useState<
+    Array<{ agent_id: string; memory_count: number }>
+  >([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [selectedRelTypes, setSelectedRelTypes] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>("");
@@ -191,7 +230,11 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   const [showAllRelTypes, setShowAllRelTypes] = useState(false);
 
   // Derive source list from agents (use API-returned source field)
-  const deriveSources = (): Array<{ source_id: string; label: string; count: number }> => {
+  const deriveSources = (): Array<{
+    source_id: string;
+    label: string;
+    count: number;
+  }> => {
     const countMap: Record<string, number> = {};
     for (const a of agentList) {
       const src = a.source || inferSourceFromAgent(a.agent_id);
@@ -214,16 +257,21 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
       // If source filter is active (and no specific agent selected), aggregate data from matching agents
       let effectiveAgentId = selectedAgent || undefined;
       if (!selectedAgent && selectedSource && agentList.length > 0) {
-        const matchingAgents = agentList.filter(a => (a.source || inferSourceFromAgent(a.agent_id)) === selectedSource);
+        const matchingAgents = agentList.filter(
+          (a) =>
+            (a.source || inferSourceFromAgent(a.agent_id)) === selectedSource,
+        );
         if (matchingAgents.length === 1) {
           effectiveAgentId = matchingAgents[0].agent_id;
         } else if (matchingAgents.length > 1) {
           // Fetch and merge data from all matching agents
           const allResults = await Promise.all(
-            matchingAgents.map(a => Promise.all([
-              fetchGraph(userId, a.agent_id),
-              fetchGraphStats(userId, a.agent_id),
-            ]))
+            matchingAgents.map((a) =>
+              Promise.all([
+                fetchGraph(userId, a.agent_id),
+                fetchGraphStats(userId, a.agent_id),
+              ]),
+            ),
           );
           const mergedRelations: GraphRelation[] = [];
           const mergedRelTypes: Record<string, number> = {};
@@ -238,7 +286,11 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
             }
           }
           setGraphData(buildGraphData(mergedRelations));
-          setStats({ nodes: totalNodes, relations: totalRelations, relation_types: mergedRelTypes });
+          setStats({
+            nodes: totalNodes,
+            relations: totalRelations,
+            relation_types: mergedRelTypes,
+          });
           setSelectedRelTypes([]);
           setSearchQuery("");
           setLoading(false);
@@ -266,7 +318,9 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   useEffect(() => {
     fetchGraphAgents(userId)
       .then((res) => setAgentList(res.agents))
-      .catch(() => {/* non-critical */});
+      .catch(() => {
+        /* non-critical */
+      });
   }, [userId]);
 
   useEffect(() => {
@@ -276,8 +330,9 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   // When source changes, reset agent selection if it doesn't match
   useEffect(() => {
     if (selectedSource && selectedAgent) {
-      const agentEntry = agentList.find(a => a.agent_id === selectedAgent);
-      const agentSource = agentEntry?.source || inferSourceFromAgent(selectedAgent);
+      const agentEntry = agentList.find((a) => a.agent_id === selectedAgent);
+      const agentSource =
+        agentEntry?.source || inferSourceFromAgent(selectedAgent);
       if (agentSource !== selectedSource) {
         setSelectedAgent("");
       }
@@ -292,17 +347,20 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
 
   // Toggle relation type filter
   const toggleRelType = (relType: string) => {
-    setSelectedRelTypes(prev =>
+    setSelectedRelTypes((prev) =>
       prev.includes(relType)
-        ? prev.filter(t => t !== relType)
-        : [...prev, relType]
+        ? prev.filter((t) => t !== relType)
+        : [...prev, relType],
     );
   };
 
   // Zoom to fit on data change
   useEffect(() => {
     if (graphData.nodes.length > 0 && graphRef.current) {
-      const timer = setTimeout(() => graphRef.current?.zoomToFit?.(400, 40), 100);
+      const timer = setTimeout(
+        () => graphRef.current?.zoomToFit?.(400, 40),
+        100,
+      );
       return () => clearTimeout(timer);
     }
   }, [graphData]);
@@ -316,10 +374,18 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
     setIsSearching(true);
     setError(null);
     try {
-      const res = await fetchGraphSearch(searchQuery, userId, selectedAgent || undefined);
+      const res = await fetchGraphSearch(
+        searchQuery,
+        userId,
+        selectedAgent || undefined,
+      );
       setGraphData(buildGraphData(res.relations));
       if (stats) {
-        setStats({ ...stats, nodes: buildGraphData(res.relations).nodes.length, relations: res.total });
+        setStats({
+          ...stats,
+          nodes: buildGraphData(res.relations).nodes.length,
+          relations: res.total,
+        });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
@@ -330,35 +396,46 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
 
   // Canvas: highlight selected rel types
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const label = nodeLabel(node);
-    const fontSize = Math.max(10 / globalScale, 3);
-    const radius = Math.sqrt(node.val ?? 1) * 3 + 4;
+  const nodeCanvasObject = useCallback(
+    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const label = nodeLabel(node);
+      const fontSize = Math.max(10 / globalScale, 3);
+      const radius = Math.sqrt(node.val ?? 1) * 3 + 4;
 
-    ctx.beginPath();
-    ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = selectedRelTypes.length > 0 ? "#94a3b8" : "#6366f1";
-    ctx.fill();
+      ctx.beginPath();
+      ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = selectedRelTypes.length > 0 ? "#94a3b8" : "#6366f1";
+      ctx.fill();
 
-    ctx.font = `${fontSize}px Inter, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#1e293b";
-    ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + radius + fontSize);
-  }, [selectedRelTypes]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const linkColor = useCallback((link: any): string => {
-    const rel: string = link.relationship ?? "";
-    const color = relColor(rel);
-    return selectedRelTypes.length === 0 || selectedRelTypes.includes(rel) ? color : `${color}33`;
-  }, [selectedRelTypes]);
+      ctx.font = `${fontSize}px Inter, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + radius + fontSize);
+    },
+    [selectedRelTypes],
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const linkWidth = useCallback((link: any): number => {
-    const rel: string = link.relationship ?? "";
-    return selectedRelTypes.includes(rel) ? 2.5 : 0.5;
-  }, [selectedRelTypes]);
+  const linkColor = useCallback(
+    (link: any): string => {
+      const rel: string = link.relationship ?? "";
+      const color = relColor(rel);
+      return selectedRelTypes.length === 0 || selectedRelTypes.includes(rel)
+        ? color
+        : `${color}33`;
+    },
+    [selectedRelTypes],
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const linkWidth = useCallback(
+    (link: any): number => {
+      const rel: string = link.relationship ?? "";
+      return selectedRelTypes.includes(rel) ? 2.5 : 0.5;
+    },
+    [selectedRelTypes],
+  );
 
   return (
     <div
@@ -414,7 +491,8 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
               全部
             </button>
             {deriveSources().map((src) => {
-              const colorClass = SOURCE_COLORS[src.source_id] || SOURCE_COLORS["unknown"];
+              const colorClass =
+                SOURCE_COLORS[src.source_id] || SOURCE_COLORS["unknown"];
               return (
                 <button
                   key={src.source_id}
@@ -448,23 +526,30 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
             >
               全部
             </button>
-            {agentList.filter(a => !selectedSource || (a.source || inferSourceFromAgent(a.agent_id)) === selectedSource).map((a) => (
-              <button
-                key={a.agent_id}
-                onClick={() => setSelectedAgent(a.agent_id)}
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-xs font-medium transition",
-                  selectedAgent === a.agent_id
-                    ? "bg-indigo-500 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                )}
-              >
-                <span className="flex items-center gap-1">
-                  <Bot className="h-3 w-3" />
-                  {a.agent_id} ({a.memory_count})
-                </span>
-              </button>
-            ))}
+            {agentList
+              .filter(
+                (a) =>
+                  !selectedSource ||
+                  (a.source || inferSourceFromAgent(a.agent_id)) ===
+                    selectedSource,
+              )
+              .map((a) => (
+                <button
+                  key={a.agent_id}
+                  onClick={() => setSelectedAgent(a.agent_id)}
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 text-xs font-medium transition",
+                    selectedAgent === a.agent_id
+                      ? "bg-indigo-500 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                  )}
+                >
+                  <span className="flex items-center gap-1">
+                    <Bot className="h-3 w-3" />
+                    {a.agent_id} ({a.memory_count})
+                  </span>
+                </button>
+              ))}
           </div>
         )}
 
@@ -477,23 +562,25 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
                 {getSortedRelTypes()
                   .slice(0, showAllRelTypes ? undefined : 12)
                   .map(([rel_type, cnt]) => {
-                  const active = selectedRelTypes.includes(rel_type);
-                  return (
-                    <button
-                      key={rel_type}
-                      onClick={() => toggleRelType(rel_type)}
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-xs transition",
-                        active
-                          ? "text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                      )}
-                      style={active ? { backgroundColor: relColor(rel_type) } : {}}
-                    >
-                      {rel_type} ({cnt})
-                    </button>
-                  );
-                })}
+                    const active = selectedRelTypes.includes(rel_type);
+                    return (
+                      <button
+                        key={rel_type}
+                        onClick={() => toggleRelType(rel_type)}
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs transition",
+                          active
+                            ? "text-white"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                        )}
+                        style={
+                          active ? { backgroundColor: relColor(rel_type) } : {}
+                        }
+                      >
+                        {rel_type} ({cnt})
+                      </button>
+                    );
+                  })}
                 {selectedRelTypes.length > 0 && (
                   <button
                     onClick={() => setSelectedRelTypes([])}
@@ -510,7 +597,9 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
                 onClick={() => setShowAllRelTypes(!showAllRelTypes)}
                 className="self-start text-xs text-indigo-500 hover:text-indigo-600"
               >
-                {showAllRelTypes ? "收起" : `展开全部 (${Object.keys(stats.relation_types).length} 种类型)`}
+                {showAllRelTypes
+                  ? "收起"
+                  : `展开全部 (${Object.keys(stats.relation_types).length} 种类型)`}
               </button>
             )}
           </div>
@@ -528,13 +617,27 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
           placeholder="搜索节点名称或关系类型…"
           className="flex-1 text-sm text-slate-700 placeholder-slate-400 outline-none"
         />
-        {isSearching && <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-400" />}
+        {isSearching && (
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-400" />
+        )}
         {searchQuery && (
-          <button onClick={() => { setSearchQuery(""); loadGraph(); }} className="text-slate-400 hover:text-slate-600">
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              loadGraph();
+            }}
+            className="text-slate-400 hover:text-slate-600"
+          >
             <X className="h-3.5 w-3.5" />
           </button>
         )}
-        <Button size="sm" variant="outline" onClick={handleSearch} disabled={isSearching} className="h-7 text-xs">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSearch}
+          disabled={isSearching}
+          className="h-7 text-xs"
+        >
           搜索
         </Button>
       </div>
@@ -576,17 +679,21 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
         {/* Legend */}
         {stats && Object.keys(stats.relation_types).length > 0 && (
           <div className="absolute bottom-2 right-2 flex max-w-[160px] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-slate-100 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-sm">
-            {Object.entries(stats.relation_types).slice(0, 8).map(([rel_type]) => (
-              <div key={rel_type} className="flex items-center gap-1">
-                <span
-                  className="inline-block h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: relColor(rel_type) }}
-                />
-                <span className="text-xs text-slate-500">{rel_type}</span>
-              </div>
-            ))}
+            {Object.entries(stats.relation_types)
+              .slice(0, 8)
+              .map(([rel_type]) => (
+                <div key={rel_type} className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: relColor(rel_type) }}
+                  />
+                  <span className="text-xs text-slate-500">{rel_type}</span>
+                </div>
+              ))}
             {Object.keys(stats.relation_types).length > 8 && (
-              <span className="text-xs text-slate-400">+{Object.keys(stats.relation_types).length - 8} 更多</span>
+              <span className="text-xs text-slate-400">
+                +{Object.keys(stats.relation_types).length - 8} 更多
+              </span>
             )}
           </div>
         )}

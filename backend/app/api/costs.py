@@ -460,9 +460,7 @@ async def _get_cost_metrics_fallback(
         agent_names = await _fetch_agent_names(session, agent_ids)
 
         # 构建响应
-        model_breakdown = _convert_gateway_model_breakdown(
-            aggregates.get("byModel", [])
-        )
+        model_breakdown = _convert_gateway_model_breakdown(aggregates.get("byModel", []))
         kpis = _convert_gateway_totals_to_kpis(totals, days, model_breakdown)
 
         # 构建 daily series - 使用 modelDaily 数据
@@ -535,26 +533,20 @@ async def get_cost_metrics(
     days, _ = _resolve_cost_range(range)
 
     # 1. 首先尝试使用 Gateway RPC
-    gateway_config = await _get_default_gateway_config(
-        session, str(ctx.organization.id)
-    )
+    gateway_config = await _get_default_gateway_config(session, str(ctx.organization.id))
 
     if gateway_config is not None:
         gateway_data = await _fetch_cost_data_from_gateway(gateway_config, days)
         if gateway_data is not None:
             logger.info("Using Gateway RPC for cost data (org=%s)", ctx.organization.id)
-            return await _build_cost_metrics_from_gateway_data(
-                session, gateway_data, days, range
-            )
+            return await _build_cost_metrics_from_gateway_data(session, gateway_data, days, range)
         else:
             logger.warning(
                 "Gateway RPC failed for org=%s, falling back to HTTP API",
                 ctx.organization.id,
             )
     else:
-        logger.info(
-            "No gateway configured for org=%s, using HTTP API", ctx.organization.id
-        )
+        logger.info("No gateway configured for org=%s, using HTTP API", ctx.organization.id)
 
     # 2. Fallback: 使用 HTTP API
     return await _get_cost_metrics_fallback(range, session, str(ctx.organization.id))
@@ -579,22 +571,16 @@ async def get_model_costs(
     days, _ = _resolve_cost_range(range)
 
     # 1. 首先尝试使用 Gateway RPC
-    gateway_config = await _get_default_gateway_config(
-        session, str(ctx.organization.id)
-    )
+    gateway_config = await _get_default_gateway_config(session, str(ctx.organization.id))
 
     if gateway_config is not None:
         gateway_data = await _fetch_cost_data_from_gateway(gateway_config, days)
         if gateway_data is not None:
-            logger.info(
-                "Using Gateway RPC for model costs (org=%s)", ctx.organization.id
-            )
+            logger.info("Using Gateway RPC for model costs (org=%s)", ctx.organization.id)
             return _convert_gateway_model_breakdown(gateway_data.get("byModel", []))
 
     # 2. Fallback: 使用 HTTP API
-    logger.info(
-        "Falling back to HTTP API for model costs (org=%s)", ctx.organization.id
-    )
+    logger.info("Falling back to HTTP API for model costs (org=%s)", ctx.organization.id)
     client = OpenClawClient()
 
     try:
@@ -632,16 +618,12 @@ async def get_agent_costs(
     days, _ = _resolve_cost_range(range)
 
     # 1. 首先尝试使用 Gateway RPC
-    gateway_config = await _get_default_gateway_config(
-        session, str(ctx.organization.id)
-    )
+    gateway_config = await _get_default_gateway_config(session, str(ctx.organization.id))
 
     if gateway_config is not None:
         gateway_data = await _fetch_cost_data_from_gateway(gateway_config, days)
         if gateway_data is not None:
-            logger.info(
-                "Using Gateway RPC for agent costs (org=%s)", ctx.organization.id
-            )
+            logger.info("Using Gateway RPC for agent costs (org=%s)", ctx.organization.id)
             by_agent = gateway_data.get("byAgent", [])
 
             # 获取 agent 名称
@@ -655,9 +637,7 @@ async def get_agent_costs(
             return _convert_gateway_agent_breakdown(by_agent, agent_names)
 
     # 2. Fallback: 使用 HTTP API
-    logger.info(
-        "Falling back to HTTP API for agent costs (org=%s)", ctx.organization.id
-    )
+    logger.info("Falling back to HTTP API for agent costs (org=%s)", ctx.organization.id)
     client = OpenClawClient()
 
     try:

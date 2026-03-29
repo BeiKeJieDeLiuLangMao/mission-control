@@ -79,6 +79,7 @@ class SkillHealthDashboard:
             return 0.5  # never confirmed — neutral
 
         from datetime import datetime, timezone
+
         now = datetime.now(timezone.utc)
         age = (now - instinct.last_confirmed_at).total_seconds()
         age_days = age / 86400
@@ -116,15 +117,17 @@ class SkillHealthDashboard:
         skill_entries = []
         for instinct in instincts:
             score = self.calculate_skill_health_score(instinct)
-            skill_entries.append({
-                "id": instinct.id,
-                "name": instinct.name,
-                "health_score": score,
-                "confidence": instinct.confidence,
-                "success_rate": instinct.success_rate,
-                "times_applied": instinct.times_applied,
-                "enabled": instinct.enabled,
-            })
+            skill_entries.append(
+                {
+                    "id": instinct.id,
+                    "name": instinct.name,
+                    "health_score": score,
+                    "confidence": instinct.confidence,
+                    "success_rate": instinct.success_rate,
+                    "times_applied": instinct.times_applied,
+                    "enabled": instinct.enabled,
+                }
+            )
 
         scores = [e["health_score"] for e in skill_entries]
         overall = sum(scores) / len(scores) if scores else 0.0

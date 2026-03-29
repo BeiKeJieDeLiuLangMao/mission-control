@@ -8,16 +8,17 @@ Turn storage API router (v2).
 """
 
 import logging
-from typing import Optional, Annotated
+from typing import Annotated, Optional
 from uuid import UUID
 
-from app.db.session import get_session
-from app.memory.models import Turn
-from app.memory.schemas import TurnStoreRequest, TurnStoreResponse
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.db.session import get_session
+from app.memory.models import Turn
+from app.memory.schemas import TurnStoreRequest, TurnStoreResponse
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/memory/turns", tags=["memory-turns"])
 
 class TurnResponse(BaseModel):
     """Turn 响应"""
+
     id: str
     session_id: str
     user_id: str
@@ -38,6 +40,7 @@ class TurnResponse(BaseModel):
 
 class TurnListResponse(BaseModel):
     """Turn 列表响应"""
+
     turns: list
     total: int
 
@@ -58,8 +61,7 @@ async def _turn_to_response(turn: Turn) -> TurnResponse:
 
 @router.post("/", response_model=TurnStoreResponse)
 async def create_turn(
-    request: TurnStoreRequest,
-    session: Annotated[AsyncSession, Depends(get_session)]
+    request: TurnStoreRequest, session: Annotated[AsyncSession, Depends(get_session)]
 ):
     """
     存储 Turn（异步处理）
@@ -79,7 +81,9 @@ async def create_turn(
         await session.commit()
         await session.refresh(turn)
 
-        logger.info(f"Created turn {turn.id} for session {request.session_id}, source={request.source}")
+        logger.info(
+            f"Created turn {turn.id} for session {request.session_id}, source={request.source}"
+        )
         return TurnStoreResponse(
             success=True,
             turn_id=str(turn.id),
@@ -94,10 +98,7 @@ async def create_turn(
 
 
 @router.get("/{turn_id}", response_model=TurnResponse)
-async def get_turn(
-    turn_id: str,
-    session: Annotated[AsyncSession, Depends(get_session)]
-):
+async def get_turn(turn_id: str, session: Annotated[AsyncSession, Depends(get_session)]):
     """获取单个 Turn"""
     statement = select(Turn).where(Turn.id == turn_id)
     result = await session.exec(statement)
@@ -115,7 +116,7 @@ async def list_turns(
     status: Optional[str] = Query(None, description="Filter by processing status"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
 ):
     """列出 Turns"""
     statement = select(Turn).where(Turn.user_id == user_id)
@@ -139,17 +140,11 @@ async def list_turns(
     result = await session.exec(statement)
     turns = result.all()
 
-    return TurnListResponse(
-        turns=[await _turn_to_response(turn) for turn in turns],
-        total=total
-    )
+    return TurnListResponse(turns=[await _turn_to_response(turn) for turn in turns], total=total)
 
 
 @router.delete("/{turn_id}")
-async def delete_turn(
-    turn_id: str,
-    session: Annotated[AsyncSession, Depends(get_session)]
-):
+async def delete_turn(turn_id: str, session: Annotated[AsyncSession, Depends(get_session)]):
     """删除 Turn"""
     statement = select(Turn).where(Turn.id == turn_id)
     result = await session.exec(statement)

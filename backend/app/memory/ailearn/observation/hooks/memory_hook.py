@@ -8,8 +8,8 @@ import functools
 import inspect
 from typing import Any, Callable, Dict, Optional
 
-from ..models import Observation, ObservationType
 from ..filters.privacy_filter import PrivacyFilter
+from ..models import Observation, ObservationType
 from ..storage.buffer import ObservationBuffer
 from ..storage.observation_store import ObservationStore
 

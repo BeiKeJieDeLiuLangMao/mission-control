@@ -8,7 +8,9 @@ from app.memory.providers.vector_stores.base import VectorStoreBase
 try:
     from upstash_vector import Index
 except ImportError:
-    raise ImportError("The 'upstash_vector' library is required. Please install it using 'pip install upstash_vector'.")
+    raise ImportError(
+        "The 'upstash_vector' library is required. Please install it using 'pip install upstash_vector'."
+    )
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +69,9 @@ class UpstashVector(VectorStoreBase):
 
         if self.enable_embeddings:
             if not payloads or any("data" not in m or m["data"] is None for m in payloads):
-                raise ValueError("When embeddings are enabled, all payloads must contain a 'data' field.")
+                raise ValueError(
+                    "When embeddings are enabled, all payloads must contain a 'data' field."
+                )
             processed_vectors = [
                 {
                     "id": ids[i] if ids else None,
@@ -113,7 +117,11 @@ class UpstashVector(VectorStoreBase):
             List[OutputData]: Search results.
         """
 
-        filters_str = " AND ".join([f"{k} = {self._stringify(v)}" for k, v in filters.items()]) if filters else None
+        filters_str = (
+            " AND ".join([f"{k} = {self._stringify(v)}" for k, v in filters.items()])
+            if filters
+            else None
+        )
 
         response = []
 
@@ -214,7 +222,11 @@ class UpstashVector(VectorStoreBase):
         Returns:
             List[OutputData]: Search results.
         """
-        filters_str = " AND ".join([f"{k} = {self._stringify(v)}" for k, v in filters.items()]) if filters else None
+        filters_str = (
+            " AND ".join([f"{k} = {self._stringify(v)}" for k, v in filters.items()])
+            if filters
+            else None
+        )
 
         info = self.client.info()
         ns_info = info.namespaces.get(self.collection_name)

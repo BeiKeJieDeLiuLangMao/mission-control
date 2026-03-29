@@ -184,17 +184,34 @@ async def build_group_snapshot(
         )
     boards_by_id = {board.id: board for board in boards}
     board_ids = list(boards_by_id.keys())
-    task_counts = await _task_counts_by_board(session, board_ids)
-    tasks = await _ordered_tasks_for_boards(
-        session,
-        board_ids,
-        include_done=include_done,
-    )
-    agent_name_by_id = await _agent_names(session, tasks)
-    tag_state_by_task_id = await load_tag_state(
-        session,
-        task_ids=[task.id for task in tasks],
-    )
+
+    # Load data per-board to keep memory footprint small
+    all_tasks: list[Task] = []
+    task_counts: dict[UUID, dict[str, int]] = {}
+    for board_id in board_ids:
+        board_task_counts = await _task_counts_by_board(session, [board_id])
+        task_counts.update(board_task_counts)
+        board_tasks = await _ordered_tasks_for_boards(
+            session,
+            [board_id],
+            include_done=include_done,
+        )
+        all_tasks.extend(board_tasks)
+    tasks = all_tasks
+
+    agent_name_by_id: dict[UUID, str] = {}
+    for task in tasks:
+        if task.assigned_agent_id is not None:
+            names = await _agent_names(session, [task])
+            agent_name_by_id.update(names)
+
+    tag_state_by_task_id: dict[UUID, TagState] = {}
+    for task in tasks:
+        single_state = await load_tag_state(
+            session,
+            task_ids=[task.id],
+        )
+        tag_state_by_task_id.update(single_state)
     tasks_by_board = _task_summaries_by_board(
         boards_by_id=boards_by_id,
         tasks=tasks,

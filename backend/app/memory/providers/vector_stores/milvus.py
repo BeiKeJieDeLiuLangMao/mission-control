@@ -9,7 +9,9 @@ from app.memory.providers.vector_stores.base import VectorStoreBase
 try:
     import pymilvus  # noqa: F401
 except ImportError:
-    raise ImportError("The 'pymilvus' library is required. Please install it using 'pip install pymilvus'.")
+    raise ImportError(
+        "The 'pymilvus' library is required. Please install it using 'pip install pymilvus'."
+    )
 
 from pymilvus import CollectionSchema, DataType, FieldSchema, MilvusClient
 
@@ -78,9 +80,14 @@ class MilvusDB(VectorStoreBase):
             schema = CollectionSchema(fields, enable_dynamic_field=True)
 
             index = self.client.prepare_index_params(
-                field_name="vectors", metric_type=metric_type, index_type="AUTOINDEX", index_name="vector_index"
+                field_name="vectors",
+                metric_type=metric_type,
+                index_type="AUTOINDEX",
+                index_name="vector_index",
             )
-            self.client.create_collection(collection_name=collection_name, schema=schema, index_params=index)
+            self.client.create_collection(
+                collection_name=collection_name, schema=schema, index_params=index
+            )
 
     def insert(self, ids, vectors, payloads, **kwargs: Optional[dict[str, any]]):
         """Insert vectors into a collection.
@@ -236,7 +243,9 @@ class MilvusDB(VectorStoreBase):
             List[OutputData]: List of vectors.
         """
         query_filter = self._create_filter(filters) if filters else None
-        result = self.client.query(collection_name=self.collection_name, filter=query_filter, limit=limit)
+        result = self.client.query(
+            collection_name=self.collection_name, filter=query_filter, limit=limit
+        )
         memories = []
         for data in result:
             obj = OutputData(id=data.get("id"), score=None, payload=data.get("metadata"))

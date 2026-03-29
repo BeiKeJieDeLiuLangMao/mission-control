@@ -28,6 +28,7 @@ def _get_memory_client():  # type: ignore[no-untyped-def]
 
     return get_memory_client()
 
+
 # --- Stage 1: Query Analysis ---
 
 # 文件路径模式
@@ -228,44 +229,43 @@ async def _search_corrections(
     limit: int,
     timeout_ms: int,
 ) -> RecallSource:
-    """查询 correction 类型记忆。"""
+    """查询 correction 类型记忆（直接从 PostgreSQL，不走 mem0 向量搜索）。
+
+    mem0 的 search() 调用需要 9-10s，2s timeout 永远失败。
+    Correction 记忆通常数量少且重要性高，直接从 PG 查最新的即可。
+    """
     start = time.monotonic()
     source = RecallSource(source_type="correction")
     try:
-        memory_client = _get_memory_client()
-        if not memory_client:
-            source.error = "Memory client unavailable"
-            return source
+        from sqlmodel import col, select
 
-        loop = asyncio.get_running_loop()
-        response: dict[str, Any] = await asyncio.wait_for(
-            loop.run_in_executor(
-                None,
-                lambda: memory_client.search(
-                    query,
-                    user_id=user_id,
-                    agent_id=agent_id,
-                    limit=limit,
-                    filters={"memory_type": "correction"},
-                ),
-            ),
-            timeout=timeout_ms / 1000.0,
-        )
-        results = response.get("results", [])
-        for item in results:
-            source.items.append(
-                {
-                    "content": str(item.get("memory", "")),
-                    "score": item.get("score", 0.0),
-                    "memory_type": "correction",
-                    "source_type": "correction",
-                    "id": str(item.get("id", "")),
-                    "created_at": item.get("created_at"),
-                }
+        from app.db.session import async_session_maker
+        from app.memory.models import VectorMemory
+
+        async with async_session_maker() as db:
+            stmt = (
+                select(VectorMemory)
+                .where(col(VectorMemory.user_id) == user_id)
+                .where(col(VectorMemory.memory_type) == "correction")
             )
-    except asyncio.TimeoutError:
-        source.error = f"Correction search timed out after {timeout_ms}ms"
-        logger.warning(source.error)
+            if agent_id:
+                stmt = stmt.where(col(VectorMemory.agent_id) == agent_id)
+            stmt = stmt.order_by(col(VectorMemory.created_at).desc()).limit(limit)
+
+            result = await db.execute(stmt)
+            corrections = result.scalars().all()
+
+            for vm in corrections:
+                source.items.append(
+                    {
+                        "content": vm.content,
+                        "score": 1.0,  # Corrections always get max relevance
+                        "memory_type": "correction",
+                        "source_type": "correction",
+                        "id": vm.id,
+                        "created_at": vm.created_at.isoformat() if vm.created_at else None,
+                    }
+                )
     except Exception as e:
         source.error = str(e)
         logger.warning(f"Correction search failed: {e}")
@@ -379,17 +379,15 @@ async def recall(
     budget = context_budget_tokens or settings.recall_default_budget_tokens
     vector_timeout = settings.recall_vector_timeout_ms
     graph_timeout = settings.recall_graph_timeout_ms
-    correction_timeout = min(vector_timeout, 2000)
 
     # Stage 1: Query Analysis
     analysis = analyze_query(query)
 
     # Stage 2: Parallel Context Assembly
+    # Correction search uses PostgreSQL (fast, <100ms), not mem0 vector search
     vector_task = _search_vector(query, user_id, agent_id, limit=20, timeout_ms=vector_timeout)
     graph_task = _search_graph(query, user_id, agent_id, limit=10, timeout_ms=graph_timeout)
-    correction_task = _search_corrections(
-        query, user_id, agent_id, limit=5, timeout_ms=correction_timeout
-    )
+    correction_task = _search_corrections(query, user_id, agent_id, limit=5, timeout_ms=2000)
 
     results = await asyncio.gather(vector_task, graph_task, correction_task, return_exceptions=True)
 

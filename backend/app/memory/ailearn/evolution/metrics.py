@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class MetricSnapshot:
     """A single metric snapshot."""
+
     timestamp: datetime
     value: float
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -122,8 +123,14 @@ class MetricsCollector:
         cutoff = now - self.window_size
 
         for dq in [
-            self._add_times, self._update_times, self._delete_times, self._search_times,
-            self._add_success, self._update_success, self._delete_success, self._search_success,
+            self._add_times,
+            self._update_times,
+            self._delete_times,
+            self._search_times,
+            self._add_success,
+            self._update_success,
+            self._delete_success,
+            self._search_success,
         ]:
             while dq and dq[0].timestamp < cutoff:
                 dq.popleft()

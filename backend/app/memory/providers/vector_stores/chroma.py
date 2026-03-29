@@ -7,7 +7,9 @@ try:
     import chromadb
     from chromadb.config import Settings
 except ImportError:
-    raise ImportError("The 'chromadb' library is required. Please install it using 'pip install chromadb'.")
+    raise ImportError(
+        "The 'chromadb' library is required. Please install it using 'pip install chromadb'."
+    )
 
 from app.memory.providers.vector_stores.base import VectorStoreBase
 
@@ -49,9 +51,7 @@ class ChromaDB(VectorStoreBase):
             # Initialize ChromaDB Cloud client
             logger.info("Initializing ChromaDB Cloud client")
             self.client = chromadb.CloudClient(
-                api_key=api_key,
-                tenant=tenant,
-                database="mem0"  # Use fixed database name for cloud
+                api_key=api_key, tenant=tenant, database="mem0"  # Use fixed database name for cloud
             )
         else:
             # Initialize local or server client
@@ -99,8 +99,16 @@ class ChromaDB(VectorStoreBase):
         for i in range(max_length):
             entry = OutputData(
                 id=ids[i] if isinstance(ids, list) and ids and i < len(ids) else None,
-                score=(distances[i] if isinstance(distances, list) and distances and i < len(distances) else None),
-                payload=(metadatas[i] if isinstance(metadatas, list) and metadatas and i < len(metadatas) else None),
+                score=(
+                    distances[i]
+                    if isinstance(distances, list) and distances and i < len(distances)
+                    else None
+                ),
+                payload=(
+                    metadatas[i]
+                    if isinstance(metadatas, list) and metadatas and i < len(metadatas)
+                    else None
+                ),
             )
             result.append(entry)
 
@@ -156,7 +164,9 @@ class ChromaDB(VectorStoreBase):
             List[OutputData]: Search results.
         """
         where_clause = self._generate_where_clause(filters) if filters else None
-        results = self.collection.query(query_embeddings=vectors, where=where_clause, n_results=limit)
+        results = self.collection.query(
+            query_embeddings=vectors, where=where_clause, n_results=limit
+        )
         final_results = self._parse_output(results)
         return final_results
 
@@ -247,16 +257,16 @@ class ChromaDB(VectorStoreBase):
     def _generate_where_clause(where: dict[str, any]) -> dict[str, any]:
         """
         Generate a properly formatted where clause for ChromaDB.
-        
+
         Args:
             where (dict[str, any]): The filter conditions.
-            
+
         Returns:
             dict[str, any]: Properly formatted where clause for ChromaDB.
         """
         if where is None:
             return {}
-        
+
         def convert_condition(key: str, value: any) -> dict:
             """Convert universal filter format to ChromaDB format."""
             if value == "*":
@@ -292,9 +302,9 @@ class ChromaDB(VectorStoreBase):
             else:
                 # Simple equality
                 return {key: {"$eq": value}}
-        
+
         processed_filters = []
-        
+
         for key, value in where.items():
             if key == "$or":
                 # Handle OR conditions
@@ -307,22 +317,22 @@ class ChromaDB(VectorStoreBase):
                             or_condition.update(converted)
                     if or_condition:
                         or_conditions.append(or_condition)
-                
+
                 if len(or_conditions) > 1:
                     processed_filters.append({"$or": or_conditions})
                 elif len(or_conditions) == 1:
                     processed_filters.append(or_conditions[0])
-            
+
             elif key == "$not":
                 # Handle NOT conditions - ChromaDB doesn't have direct NOT, so we'll skip for now
                 continue
-                
+
             else:
                 # Regular condition
                 converted = convert_condition(key, value)
                 if converted:
                     processed_filters.append(converted)
-        
+
         # Return appropriate format based on number of conditions
         if len(processed_filters) == 0:
             return {}

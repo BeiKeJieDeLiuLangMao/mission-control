@@ -5,15 +5,16 @@ ECC-style instincts: patterns so reliable they're applied automatically.
 """
 
 import asyncio
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Callable, Optional
-import uuid
+from typing import Any, Callable, Dict, List, Optional
 
 
 class InstinctType(Enum):
     """Types of instincts."""
+
     WORKFLOW_OPTIMIZATION = "workflow_optimization"
     ERROR_PREVENTION = "error_prevention"
     PREFERENCE_APPLICATION = "preference_application"
@@ -23,6 +24,7 @@ class InstinctType(Enum):
 @dataclass
 class InstinctTrigger:
     """Condition that triggers an instinct."""
+
     trigger_type: str  # "method", "pattern", "context"
     condition: Dict[str, Any] = field(default_factory=dict)
 
@@ -39,6 +41,7 @@ class InstinctTrigger:
 @dataclass
 class InstinctAction:
     """Action to take when instinct is triggered."""
+
     action_type: str  # "modify_args", "prepend", "append", "replace"
     content: Any
 
@@ -130,8 +133,12 @@ class Instinct:
             "user_id": self.user_id,
             "agent_id": self.agent_id,
             "enabled": self.enabled,
-            "last_confirmed_at": self.last_confirmed_at.isoformat() if self.last_confirmed_at else None,
-            "last_contradicted_at": self.last_contradicted_at.isoformat() if self.last_contradicted_at else None,
+            "last_confirmed_at": (
+                self.last_confirmed_at.isoformat() if self.last_confirmed_at else None
+            ),
+            "last_contradicted_at": (
+                self.last_contradicted_at.isoformat() if self.last_contradicted_at else None
+            ),
             "last_decay_at": self.last_decay_at.isoformat() if self.last_decay_at else None,
             "decay_rate": self.decay_rate,
         }
@@ -166,9 +173,19 @@ class Instinct:
             user_id=data["user_id"],
             agent_id=data.get("agent_id", "default"),
             enabled=data["enabled"],
-            last_confirmed_at=datetime.fromisoformat(data["last_confirmed_at"]) if data.get("last_confirmed_at") else None,
-            last_contradicted_at=datetime.fromisoformat(data["last_contradicted_at"]) if data.get("last_contradicted_at") else None,
-            last_decay_at=datetime.fromisoformat(data["last_decay_at"]) if data.get("last_decay_at") else None,
+            last_confirmed_at=(
+                datetime.fromisoformat(data["last_confirmed_at"])
+                if data.get("last_confirmed_at")
+                else None
+            ),
+            last_contradicted_at=(
+                datetime.fromisoformat(data["last_contradicted_at"])
+                if data.get("last_contradicted_at")
+                else None
+            ),
+            last_decay_at=(
+                datetime.fromisoformat(data["last_decay_at"]) if data.get("last_decay_at") else None
+            ),
             decay_rate=data.get("decay_rate", 0.02),
         )
 
@@ -208,10 +225,7 @@ class InstinctRegistry:
 
         # Check for duplicates
         for existing in self._instincts:
-            if (
-                existing.project_id == instinct.project_id and
-                existing.name == instinct.name
-            ):
+            if existing.project_id == instinct.project_id and existing.name == instinct.name:
                 # Update existing
                 existing.confidence = instinct.confidence
                 existing.observation_count = instinct.observation_count
@@ -293,9 +307,7 @@ class InstinctRegistry:
 
                 # Update success rate
                 if instinct.times_applied > 0:
-                    instinct.success_rate = (
-                        instinct.times_successful / instinct.times_applied
-                    )
+                    instinct.success_rate = instinct.times_successful / instinct.times_applied
                 break
 
     async def disable_underperforming(self, min_success_rate: float = 0.7) -> int:
@@ -312,9 +324,9 @@ class InstinctRegistry:
 
         for instinct in self._instincts:
             if (
-                instinct.enabled and
-                instinct.times_applied >= 5 and
-                instinct.success_rate < min_success_rate
+                instinct.enabled
+                and instinct.times_applied >= 5
+                and instinct.success_rate < min_success_rate
             ):
                 instinct.enabled = False
                 disabled += 1

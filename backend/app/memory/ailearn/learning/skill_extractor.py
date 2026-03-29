@@ -12,7 +12,7 @@ Transforms detected patterns into reusable skill candidates.
 
 from typing import Any, Dict, List
 
-from .pattern import Pattern, SkillCandidate, PatternType
+from .pattern import Pattern, PatternType, SkillCandidate
 
 
 class SkillExtractor:

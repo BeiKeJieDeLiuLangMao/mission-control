@@ -1,29 +1,31 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 interface SwitchProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  checked?: boolean
-  onCheckedChange?: (checked: boolean) => void
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
 }
 
 const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
   ({ className, checked, onCheckedChange, ...props }, ref) => {
-    const [internalChecked, setInternalChecked] = React.useState(checked ?? false)
+    const [internalChecked, setInternalChecked] = React.useState(
+      checked ?? false,
+    );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newChecked = e.target.checked
-      setInternalChecked(newChecked)
-      onCheckedChange?.(newChecked)
-    }
+      const newChecked = e.target.checked;
+      setInternalChecked(newChecked);
+      onCheckedChange?.(newChecked);
+    };
 
     // Sync external checked changes
     React.useEffect(() => {
       if (checked !== undefined) {
-        setInternalChecked(checked)
+        setInternalChecked(checked);
       }
-    }, [checked])
+    }, [checked]);
 
     return (
       <label className="relative inline-flex cursor-pointer items-center">
@@ -43,13 +45,13 @@ const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
             "peer-checked:bg-blue-600 peer-checked:border-blue-600",
             "peer-checked:after:translate-x-full",
             "transition-all",
-            className
+            className,
           )}
         />
       </label>
-    )
-  }
-)
-Switch.displayName = "Switch"
+    );
+  },
+);
+Switch.displayName = "Switch";
 
-export { Switch }
+export { Switch };

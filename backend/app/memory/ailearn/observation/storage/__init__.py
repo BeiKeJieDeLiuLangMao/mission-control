@@ -3,7 +3,7 @@ Storage package for observation persistence.
 """
 
 from .buffer import ObservationBuffer
-from .observation_store import ObservationStore, FileObservationStore
+from .observation_store import FileObservationStore, ObservationStore
 
 __all__ = [
     "ObservationBuffer",

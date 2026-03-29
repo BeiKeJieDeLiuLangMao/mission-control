@@ -13,16 +13,16 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.api.memory.internal_crud import (
-    delete_memory,
-    list_memories,
-    search_memories,
-)
 from app.api.memory.adapter_turns import (
     create_turn,
     delete_turn,
     get_turn,
     list_turns,
+)
+from app.api.memory.internal_crud import (
+    delete_memory,
+    list_memories,
+    search_memories,
 )
 from app.db.session import get_session
 from app.memory.models import VectorMemory
@@ -367,6 +367,78 @@ v2_recall = APIRouter(prefix="/api/v2", tags=["compat-v2-recall"])
 v2_recall.include_router(v2_recall_inner)
 
 # ============================================================
+# v1/v2 Task Segments 兼容路由
+# ============================================================
+
+from app.api.memory.task_segments import (
+    get_task_segment_detail,
+    get_task_segment_stats,
+    list_task_segments,
+)
+
+v1_task_segments = APIRouter(prefix="/api/v1/tasks", tags=["compat-v1-tasks"])
+v2_task_segments = APIRouter(prefix="/api/v2/tasks", tags=["compat-v2-tasks"])
+
+
+@v1_task_segments.get("/segments")
+async def v1_list_task_segments(
+    user_id: str = Query("yishu"),
+    session_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    task_type: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    return await list_task_segments(user_id, session_id, status, task_type, limit, offset, session)
+
+
+@v1_task_segments.get("/segments/stats")
+async def v1_task_segment_stats(
+    user_id: str = Query("yishu"),
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_task_segment_stats(user_id, session)
+
+
+@v1_task_segments.get("/segments/{segment_id}")
+async def v1_task_segment_detail(
+    segment_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_task_segment_detail(segment_id, session)
+
+
+@v2_task_segments.get("/")
+async def v2_list_task_segments(
+    user_id: str = Query(...),
+    session_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    task_type: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    return await list_task_segments(user_id, session_id, status, task_type, limit, offset, session)
+
+
+@v2_task_segments.get("/stats")
+async def v2_task_segment_stats(
+    user_id: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_task_segment_stats(user_id, session)
+
+
+@v2_task_segments.get("/{segment_id}")
+async def v2_task_segment_detail(
+    segment_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    return await get_task_segment_detail(segment_id, session)
+
+
+# ============================================================
 # 聚合路由器
 # ============================================================
 
@@ -374,6 +446,8 @@ router = APIRouter()
 router.include_router(v2_turns)
 router.include_router(v2_memories)
 router.include_router(v2_recall)
+router.include_router(v2_task_segments)
 router.include_router(v1_turns)
 router.include_router(v1_memories)
 router.include_router(v1_graph)
+router.include_router(v1_task_segments)
