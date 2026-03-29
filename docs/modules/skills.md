@@ -79,6 +79,8 @@ SkillPack (技能包)
 |------|------|
 | models/skills.py | MarketplaceSkill + SkillPack + GatewayInstalledSkill |
 | api/skills_marketplace.py | Skills API 路由 |
+| api/souls_directory.py | Soul 模板目录 API |
+| services/souls_directory.py | Soul 目录缓存管理 |
 
 ## 相关文档
 

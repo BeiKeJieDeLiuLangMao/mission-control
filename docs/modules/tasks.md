@@ -99,6 +99,8 @@ Tag 是 Organization 级别的分类标签:
 | api/tags.py | 标签 API |
 | services/activity_log.py | 活动日志记录 |
 | services/task_dependencies.py | 依赖验证和查询 |
+| api/activity.py | 活动事件/审计日志 API |
+| services/mentions.py | @mention 提取和匹配 |
 
 ## 相关文档
 

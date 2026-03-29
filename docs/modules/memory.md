@@ -118,6 +118,12 @@ backend/app/memory/                   # 9 个顶层包
 | `memory/services/memory_worker.py` | 后台 Worker (fact extraction + graph build) |
 | `memory/services/client_factory.py` | Memory 客户端工厂 (get_memory_client) |
 | `memory/ailearn/orchestrator.py` | AI Learn 编排器 (EnhancedAILearn) |
+| `memory/core/base.py` | MemoryBase 抽象基类 |
+| `memory/core/storage.py` | 存储层 |
+| `memory/core/setup.py` | 初始化逻辑 |
+| `api/memory/adapter_compat.py` | 插件兼容路由 (v1/v2) |
+| `api/memory/adapter_turns.py` | Turn 存储 API (v2) |
+| `api/memory/frontend_views.py` | 前端记忆可视化 API |
 
 ## 环境变量
 

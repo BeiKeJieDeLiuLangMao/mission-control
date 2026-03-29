@@ -18,6 +18,7 @@
 | `install.sh` | 全局安装 (写入 `~/.claude/settings.json`) |
 | `install-project.sh` | 项目级安装 (写入 `.claude/settings.json`) |
 | `lib/api.sh` | HTTP API 封装 (search, store, health) |
+| `test-plugin-full.sh` | 完整插件集成测试脚本 |
 
 ### Hook 生命周期
 ```
@@ -45,6 +46,7 @@
 | `provider.ts` | OpenMemoryProvider HTTP 实现 |
 | `filtering.ts` | 消息噪音过滤 (心跳、确认、系统消息) |
 | `isolation.ts` | 多 Agent 内存隔离 (per-agent userId 命名空间) |
+| `types.ts` | TypeScript 类型定义 |
 
 ### Hook 生命周期
 ```

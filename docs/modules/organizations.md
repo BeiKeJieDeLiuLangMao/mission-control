@@ -65,6 +65,9 @@ Organization (组织)
 | models/users.py | 用户模型 |
 | api/organizations.py | Organization API 路由 |
 | services/organizations.py | 成员管理 + 看板访问服务 |
+| models/organization_invite_board_access.py | 邀请附带的看板权限 |
+| api/auth.py | 认证引导端点 |
+| services/admin_access.py | Actor 类型访问控制 |
 
 ## 相关文档
 

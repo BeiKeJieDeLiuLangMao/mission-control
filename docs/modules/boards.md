@@ -102,6 +102,10 @@ Agent 请求审批 (action_type + payload + confidence)
 | services/board_lifecycle.py | 看板生命周期操作 |
 | services/webhooks/dispatch.py | Webhook 分发 |
 | services/webhooks/queue.py | Webhook 入队/出队 |
+| models/board_webhook_payloads.py | Webhook 载荷记录 |
+| services/board_group_snapshot.py | 看板组快照组装 |
+| services/lead_policy.py | Lead Agent 审批和规划策略 |
+| api/board_groups.py | BoardGroup CRUD + 快照 + 心跳 |
 
 ## 相关文档
 

@@ -40,6 +40,10 @@ OpenClaw Gateway (wss://...)
 | `api/gateways.py` | 网关 CRUD + 模板同步 API |
 | `api/gateway.py` | 网关会话检查 API |
 | `api/agent.py` | Agent 端操作 (心跳/任务/审批/协调) |
+| `services/openclaw/gateway_dispatch.py` | 消息分发 (Board→Gateway→Agent) |
+| `services/openclaw/gateway_resolver.py` | Board→Gateway 配置解析 |
+| `services/openclaw/gateway_compat.py` | 向后兼容层 |
+| `services/openclaw/constants.py` | 生命周期常量 (状态值、超时、模板映射) |
 
 ## 数据模型
 
