@@ -108,3 +108,4 @@ Tag 是 Organization 级别的分类标签:
 - [Organizations](./organizations.md) — 多租户与权限
 - [Database](./database.md) — 底层存储
 - [API 约定](../reference/api.md) — REST API 通用约定
+- **E2E 测试**: `/mission-control-e2e-testing` Skill — 前端页面端到端测试

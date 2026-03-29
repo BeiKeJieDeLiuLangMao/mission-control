@@ -113,3 +113,4 @@ Agent 请求审批 (action_type + payload + confidence)
 - [Organizations](./organizations.md) — 多租户与权限
 - [Gateway](./gateway.md) — Agent 生命周期
 - [安全](../reference/security.md) — HMAC 验签、限流
+- **E2E 测试**: `/mission-control-e2e-testing` Skill — 前端页面端到端测试

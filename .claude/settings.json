@@ -2,11 +2,10 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "compact",
         "hooks": [
           {
             "type": "command",
-            "command": "echo '提醒: 修改模块代码前先读 docs/modules/ 对应文档。实现计划必须包含文档更新章节。详见 .claude/rules/'"
+            "command": "echo '⚡ 开始工作前: (1) 先读 docs/modules/ 对应文档的关键文件表 (2) 计划必须含文档更新章节 (3) E2E 验证优先调用项目 testing Skill'"
           }
         ]
       }

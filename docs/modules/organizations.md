@@ -75,3 +75,4 @@ Organization (组织)
 - [Gateway](./gateway.md) — 网关管理
 - [认证](../reference/authentication.md) — local / Clerk 认证模式
 - [API 约定](../reference/api.md) — REST API 通用约定
+- **E2E 测试**: `/mission-control-e2e-testing` Skill — 前端页面端到端测试
