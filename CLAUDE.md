@@ -155,3 +155,19 @@ make backend-migration-check   # 验证迁移图和可逆性
 - 限流 / 迁移 / API 生成: `make backend-migration-check`, `curl http://localhost:8000/healthz`
 - Memory / 数据库: 见 `docs/modules/memory.md` 和 `docs/modules/database.md`
 - 完整排查指南: `docs/troubleshooting/README.md`
+
+## 铁律 (NEVER/prefer)
+
+- NEVER 使用 `--no-verify` 跳过 git hooks; prefer 正常提交流程修复 hook 报错
+- NEVER 直接 Grep/Glob 盲搜代码; prefer 先读 `docs/modules/` 对应文档获取关键文件表
+- NEVER 在实现计划中省略文档更新; prefer 每个计划都包含"文档更新"章节
+- NEVER 声称"已完成"除非测试通过; prefer 运行 `make check` 验证
+
+## META: 如何更新此文件
+
+当 Claude 犯错被纠正后，将教训追加到此文件或 `.claude/rules/` 中:
+1. 使用绝对指令 (NEVER/ALWAYS + prefer 替代方案)
+2. 先解释"为什么"，再给出解决方案
+3. 每条规则最多一个代码示例
+4. 新规则必须与现有规则无冲突
+5. 优先加到 `.claude/rules/` 而非此文件 (保持此文件 ≤170 行)

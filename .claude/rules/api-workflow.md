@@ -1,5 +1,5 @@
 ---
-paths:
+globs:
   - "backend/app/api/**"
   - "backend/app/schemas/**"
 ---
