@@ -31,7 +31,7 @@ interface GraphStats {
 }
 
 interface GraphAgentsResponse {
-  agents: Array<{ agent_id: string; memory_count: number }>;
+  agents: Array<{ agent_id: string; memory_count: number; source?: string }>;
 }
 
 interface NodeObject {
@@ -190,11 +190,11 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [showAllRelTypes, setShowAllRelTypes] = useState(false);
 
-  // Derive source list from agents
+  // Derive source list from agents (use API-returned source field)
   const deriveSources = (): Array<{ source_id: string; label: string; count: number }> => {
     const countMap: Record<string, number> = {};
     for (const a of agentList) {
-      const src = inferSourceFromAgent(a.agent_id);
+      const src = a.source || inferSourceFromAgent(a.agent_id);
       countMap[src] = (countMap[src] ?? 0) + a.memory_count;
     }
     return Object.entries(countMap)
@@ -214,7 +214,7 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
       // If source filter is active (and no specific agent selected), aggregate data from matching agents
       let effectiveAgentId = selectedAgent || undefined;
       if (!selectedAgent && selectedSource && agentList.length > 0) {
-        const matchingAgents = agentList.filter(a => inferSourceFromAgent(a.agent_id) === selectedSource);
+        const matchingAgents = agentList.filter(a => (a.source || inferSourceFromAgent(a.agent_id)) === selectedSource);
         if (matchingAgents.length === 1) {
           effectiveAgentId = matchingAgents[0].agent_id;
         } else if (matchingAgents.length > 1) {
@@ -276,7 +276,8 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
   // When source changes, reset agent selection if it doesn't match
   useEffect(() => {
     if (selectedSource && selectedAgent) {
-      const agentSource = inferSourceFromAgent(selectedAgent);
+      const agentEntry = agentList.find(a => a.agent_id === selectedAgent);
+      const agentSource = agentEntry?.source || inferSourceFromAgent(selectedAgent);
       if (agentSource !== selectedSource) {
         setSelectedAgent("");
       }
@@ -396,7 +397,7 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
       )}
 
       {/* ---- Filter Bar ---- */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3">
         {/* Source filter chips */}
         {agentList.length > 0 && deriveSources().length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -447,7 +448,7 @@ export function MemoryGraph({ userId, className }: MemoryGraphProps) {
             >
               全部
             </button>
-            {agentList.filter(a => !selectedSource || inferSourceFromAgent(a.agent_id) === selectedSource).map((a) => (
+            {agentList.filter(a => !selectedSource || (a.source || inferSourceFromAgent(a.agent_id)) === selectedSource).map((a) => (
               <button
                 key={a.agent_id}
                 onClick={() => setSelectedAgent(a.agent_id)}

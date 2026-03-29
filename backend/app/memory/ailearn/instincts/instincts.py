@@ -101,6 +101,7 @@ class Instinct:
     # Decay fields
     last_confirmed_at: Optional[datetime] = None
     last_contradicted_at: Optional[datetime] = None
+    last_decay_at: Optional[datetime] = None  # last time decay was applied by tick()
     decay_rate: float = 0.02  # weekly decay
 
     def to_dict(self) -> Dict[str, Any]:
@@ -131,6 +132,7 @@ class Instinct:
             "enabled": self.enabled,
             "last_confirmed_at": self.last_confirmed_at.isoformat() if self.last_confirmed_at else None,
             "last_contradicted_at": self.last_contradicted_at.isoformat() if self.last_contradicted_at else None,
+            "last_decay_at": self.last_decay_at.isoformat() if self.last_decay_at else None,
             "decay_rate": self.decay_rate,
         }
 
@@ -166,6 +168,7 @@ class Instinct:
             enabled=data["enabled"],
             last_confirmed_at=datetime.fromisoformat(data["last_confirmed_at"]) if data.get("last_confirmed_at") else None,
             last_contradicted_at=datetime.fromisoformat(data["last_contradicted_at"]) if data.get("last_contradicted_at") else None,
+            last_decay_at=datetime.fromisoformat(data["last_decay_at"]) if data.get("last_decay_at") else None,
             decay_rate=data.get("decay_rate", 0.02),
         )
 

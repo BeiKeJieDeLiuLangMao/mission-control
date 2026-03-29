@@ -72,6 +72,20 @@
 | **端口稳定** | Backend :8000, Frontend :3000，遇到问题修复而非换端口 |
 | **真实链路** | OpenClaw 链路从 TUI 实测，不能只模拟 API |
 | **认证注入** | 用 `sessionStorage.setItem('mc_local_auth_token', token)` 跳过 UI 登录 |
+| **时间对齐** | 测试产生的数据必须在页面上能找到且时间与测试时间吻合，不能用旧数据冒充验证 |
+| **异步等完** | Worker 异步处理的数据 (fact/summary/graph) 必须等到 `processing_status=completed` 后才能验证前端展示 |
+
+### 完整性检查 (防止假阳性)
+
+每个 E2E 测试必须满足以下完整性检查，否则不算通过：
+
+1. **数据时效性**: 页面展示的数据创建时间必须与本次测试时间吻合 (±5分钟)，不能用历史数据证明功能正常
+2. **异步链路闭环**: 涉及 Worker 异步处理的链路 (Turn → fact extraction → Qdrant/Neo4j)，必须等 Worker 处理完毕再验证前端
+   - 轮询 `GET /api/v2/turns/{id}` 检查 `processing_status` 直到 `completed` 或 `failed`
+   - `failed` 不是通过 — 必须排查 Worker 日志找根因
+3. **来源可追溯**: 如果测试了 OpenClaw 链路，前端列表必须出现 source=openclaw 且 agent 与测试发送的 agent 一致的记忆
+4. **filter 验证**: 来源/Agent filter 选中后，列表/图谱数据必须与 filter 匹配，数量统计必须变化
+5. **不跳过等待**: Worker 处理慢不是跳过验证的理由。如果积压导致等待过长，应清理积压 turn 而不是放弃验证
 
 ### 认证模式
 

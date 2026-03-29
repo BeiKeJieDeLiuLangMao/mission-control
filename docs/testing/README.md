@@ -107,6 +107,19 @@ cd frontend && npx playwright test e2e/memories/
 - E2E 测试流程: 先用 MCP tool 交互式验证 → 通过后再整理为自动化脚本
 - OpenClaw 链路测试必须从 TUI 实际发消息，不能只模拟 API
 
+### 完整性要求 (必读)
+
+**不允许用旧数据冒充测试通过**。每次交互式 E2E 测试必须满足：
+
+1. **时间对齐**: 前端页面展示的数据创建时间必须与本次测试操作时间吻合
+2. **异步闭环**: Turn → Worker (fact/summary/graph) 必须等 `processing_status=completed` 后才能验证前端
+   - Worker 积压时应清理旧 pending turns (`UPDATE turns SET processing_status='completed' WHERE ...`)，不能无限等待也不能跳过验证
+3. **来源追溯**: OpenClaw 测试后，filter 选 OpenClaw 来源必须能看到本次测试产生的 agent 和记忆
+4. **典型反例**:
+   - 页面有 200 条记忆 → 不代表刚测试的数据已入库
+   - OpenClaw (18) filter 有数据 → 但可能全是旧数据，新发的消息可能还在 Worker 队列
+   - Worker 日志显示 "extracted 16 facts" → 可能是别的 turn，不是你刚测试的
+
 ## 覆盖率策略
 
 当前只对特定模块强制 100% 覆盖率，通过 `make backend-coverage` 执行:

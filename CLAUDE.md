@@ -60,6 +60,8 @@ frontend/
 > 五步法: Doc 先行 → 代码实现 → 交互验证 (MCP headless) → 修复问题 → 脚本固化
 >
 > 关键规则: 文档与代码保持一致 | 端口不换只修 | E2E 先交互后脚本 | headless 不弹窗
+>
+> **测试完整性**: 验证必须看到本次测试时间点产生的数据，不能用旧数据冒充 | 异步 Worker 处理必须等 completed 后再验证前端 | 详见 `docs/development/workflow.md` 完整性检查章节
 
 ## 常用开发命令
 

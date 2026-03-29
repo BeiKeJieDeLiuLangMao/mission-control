@@ -167,6 +167,7 @@ class GraphStats(BaseModel):
 class GraphAgentItem(BaseModel):
     agent_id: str
     memory_count: int
+    source: str = "unknown"
 
 
 class GraphAgentsResponse(BaseModel):
@@ -298,22 +299,51 @@ async def v1_graph_agents(
     user_id: str = Query("yishu"),
     session: AsyncSession = Depends(get_session),
 ):
-    """获取有记忆的 agent 列表（从 vector_memories 聚合）"""
+    """获取有记忆的 agent 列表（从 vector_memories 聚合，带 source）"""
     try:
+        # 按 agent_id 聚合，取最常见的 source 作为该 agent 的来源
         statement = (
-            select(VectorMemory.agent_id, func.count().label("cnt"))
+            select(
+                VectorMemory.agent_id,
+                func.count().label("cnt"),
+                VectorMemory.source,
+            )
             .where(VectorMemory.user_id == user_id)
             .where(col(VectorMemory.agent_id).is_not(None))
-            .group_by(VectorMemory.agent_id)
+            .group_by(VectorMemory.agent_id, VectorMemory.source)
             .order_by(func.count().desc())
         )
         result = await session.exec(statement)
         rows = result.all()
-        agents = [
-            GraphAgentItem(agent_id=str(row[0]), memory_count=int(row[1]))
-            for row in rows
-            if row[0]
-        ]
+
+        # 合并同 agent_id 的不同 source 行，选 count 最大的 source
+        agent_map: dict[str, dict] = {}
+        for row in rows:
+            aid = str(row[0])
+            cnt = int(row[1])
+            src = str(row[2]) if row[2] else "unknown"
+            if not aid:
+                continue
+            if aid not in agent_map:
+                agent_map[aid] = {"agent_id": aid, "memory_count": cnt, "source": src, "_max_cnt": cnt}
+            else:
+                agent_map[aid]["memory_count"] += cnt
+                if cnt > agent_map[aid]["_max_cnt"]:
+                    agent_map[aid]["source"] = src
+                    agent_map[aid]["_max_cnt"] = cnt
+
+        agents = sorted(
+            [
+                GraphAgentItem(
+                    agent_id=v["agent_id"],
+                    memory_count=v["memory_count"],
+                    source=v["source"],
+                )
+                for v in agent_map.values()
+            ],
+            key=lambda a: a.memory_count,
+            reverse=True,
+        )
         return GraphAgentsResponse(agents=agents)
     except Exception as e:
         logger.warning(f"Graph agents query failed: {e}")
