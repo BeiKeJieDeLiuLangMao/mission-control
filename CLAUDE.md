@@ -53,13 +53,15 @@ frontend/
 - **memory**: 内存限流 (默认)
 - **redis**: Redis 限流 (需要 `RATE_LIMIT_REDIS_URL`)
 
-## 开发工作流
+## 开发工作模式
 
-> **执行任何开发任务前必读**: `docs/development/workflow.md`
+> **智能触发**: 不是所有任务都走 harness。详见 `.claude/rules/harness-workflow.md`
 >
-> 五步法: Doc 先行 → 代码实现 → 交互验证 (MCP headless) → 修复问题 → 脚本固化
->
-> 关键规则: 文档与代码保持一致 | 端口不换只修 | E2E 先交互后脚本 | headless 不弹窗
+> | 判定 | 条件 | 做法 |
+> |------|------|------|
+> | **MUST** | 2+ 文件 / API / Model / Migration | `/plan` → `/implement` → `/evaluate` |
+> | **SKIP** | 单文件 / 配置 / 探索 / 审查 / 测试 | 读 docs → 实现 → `make check` |
+> | **AUTO** | 不确定 | 评估影响面后决定，告知用户 |
 >
 > **测试完整性**: 验证必须看到本次测试时间点产生的数据，不能用旧数据冒充 | 异步 Worker 处理必须等 completed 后再验证前端 | 详见 `docs/development/workflow.md` 完整性检查章节
 
@@ -139,7 +141,7 @@ make backend-migration-check   # 验证迁移图和可逆性
 | Skills | 技能市场、技能包、安装 | `docs/modules/skills.md` | - |
 | Auth | local token / Clerk JWT | `docs/reference/authentication.md` | - |
 | API | REST API 设计与约定 | `docs/reference/api.md` | - |
-| **Workflow** | **开发五步法 + E2E 规范** | **`docs/development/workflow.md`** | - |
+| **Workflow** | **开发工作模式 + E2E 规范** | **`docs/development/workflow.md`** | `--type harness` |
 | Testing | pytest + vitest + E2E | `docs/testing/README.md` | `/mission-control-e2e-testing` |
 | Deployment | Docker + systemd + launchd | `docs/deployment/README.md` | - |
 | Operations | 健康检查、备份、限流 | `docs/operations/README.md` | - |
@@ -154,22 +156,16 @@ make backend-migration-check   # 验证迁移图和可逆性
 
 ## 故障排查
 
-- 限流 / 迁移 / API 生成: `make backend-migration-check`, `curl http://localhost:8000/healthz`
-- Memory / 数据库: 见 `docs/modules/memory.md` 和 `docs/modules/database.md`
-- 完整排查指南: `docs/troubleshooting/README.md`
+- 限流 / 迁移 / API: `make backend-migration-check`, `curl http://localhost:8000/healthz`
+- 完整排查: `docs/troubleshooting/README.md`
 
 ## 铁律 (NEVER/prefer)
 
-- NEVER 使用 `--no-verify` 跳过 git hooks; prefer 正常提交流程修复 hook 报错
-- NEVER 直接 Grep/Glob 盲搜代码; prefer 先读 `docs/modules/` 对应文档获取关键文件表
-- NEVER 在实现计划中省略文档更新; prefer 每个计划都包含"文档更新"章节
-- NEVER 声称"已完成"除非测试通过; prefer 运行 `make check` 验证
+- NEVER `--no-verify`; prefer 修复 hook 报错
+- NEVER 盲搜代码; prefer 先读 `docs/modules/` 获取关键文件表
+- NEVER 计划中省略文档更新; prefer 每个计划含"文档更新"章节
+- NEVER 声称"已完成"除非 `make check` 通过
 
-## META: 如何更新此文件
+## META
 
-当 Claude 犯错被纠正后，将教训追加到此文件或 `.claude/rules/` 中:
-1. 使用绝对指令 (NEVER/ALWAYS + prefer 替代方案)
-2. 先解释"为什么"，再给出解决方案
-3. 每条规则最多一个代码示例
-4. 新规则必须与现有规则无冲突
-5. 优先加到 `.claude/rules/` 而非此文件 (保持此文件 ≤170 行)
+犯错被纠正 → 追加到 `.claude/rules/` (优先) 或此文件: NEVER+prefer 格式，先 why 再 how，≤170 行

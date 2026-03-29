@@ -29,8 +29,9 @@ backend/app/services/openclaw/.device-keys
 # SQLite databases
 *.db
 
-# 渐进式披露盲测 (不进 git, 确保 worktree 被测 agent 看不到)
+# 评测 Skill (不进 git, 确保 worktree 被测 agent 看不到)
 .claude/skills/progressive-disclosure-testing/
 /.playwright-mcp/
 /frontend/e2e-screenshots/
 /frontend/test-results/
+/.claude/worktrees/
