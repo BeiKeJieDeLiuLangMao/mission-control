@@ -103,6 +103,42 @@ export class OpenMemoryProvider implements Mem0Provider {
   }
 
   // ---------------------------------------------------------------------------
+  // recall — intelligent parallel recall via POST /api/v2/recall
+  //          falls back to search() if unavailable
+  // ---------------------------------------------------------------------------
+
+  async recall(
+    query: string,
+    userId: string,
+    agentId?: string,
+    budgetTokens?: number,
+  ): Promise<{ contextText: string; sources: unknown[]; timing: Record<string, number> } | null> {
+    try {
+      const body: Record<string, unknown> = {
+        user_id: userId,
+        query,
+        context_budget_tokens: budgetTokens ?? 2000,
+      };
+      if (agentId) body.agent_id = agentId;
+
+      const resp = await this.request<{
+        context_text: string;
+        sources: unknown[];
+        timing: Record<string, number>;
+      }>("POST", "/api/v2/recall", body);
+
+      return {
+        contextText: resp.context_text ?? "",
+        sources: resp.sources ?? [],
+        timing: resp.timing ?? {},
+      };
+    } catch (err) {
+      this.log?.(`recall failed, will fallback to search: ${err}`);
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // search — semantic vector search via new /search endpoint
   //           falls back to keyword filter if unavailable
   // ---------------------------------------------------------------------------

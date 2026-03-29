@@ -181,7 +181,7 @@ async def v1_get_graph(
 ):
     """查询知识图谱关系"""
     memory_client = get_memory_client()
-    if not memory_client or not getattr(memory_client, 'enable_graph', False):
+    if not memory_client or not getattr(memory_client, "enable_graph", False):
         return GraphResponse()
 
     try:
@@ -227,7 +227,7 @@ async def v1_graph_search(
 ):
     """搜索知识图谱"""
     memory_client = get_memory_client()
-    if not memory_client or not getattr(memory_client, 'enable_graph', False) or not q:
+    if not memory_client or not getattr(memory_client, "enable_graph", False) or not q:
         return GraphResponse()
 
     try:
@@ -238,11 +238,13 @@ async def v1_graph_search(
         relations = []
         for item in results:
             if isinstance(item, dict) and "source" in item:
-                relations.append(GraphRelation(
-                    source=str(item.get("source", "unknown")),
-                    relationship=str(item.get("relationship", "RELATED")),
-                    target=str(item.get("target", "unknown")),
-                ))
+                relations.append(
+                    GraphRelation(
+                        source=str(item.get("source", "unknown")),
+                        relationship=str(item.get("relationship", "RELATED")),
+                        target=str(item.get("target", "unknown")),
+                    )
+                )
         return GraphResponse(relations=relations, total=len(relations))
     except Exception as e:
         logger.warning(f"Graph search failed: {e}")
@@ -256,7 +258,7 @@ async def v1_graph_stats(
 ):
     """获取知识图谱统计"""
     memory_client = get_memory_client()
-    if not memory_client or not getattr(memory_client, 'enable_graph', False):
+    if not memory_client or not getattr(memory_client, "enable_graph", False):
         return GraphStats()
 
     try:
@@ -325,7 +327,12 @@ async def v1_graph_agents(
             if not aid:
                 continue
             if aid not in agent_map:
-                agent_map[aid] = {"agent_id": aid, "memory_count": cnt, "source": src, "_max_cnt": cnt}
+                agent_map[aid] = {
+                    "agent_id": aid,
+                    "memory_count": cnt,
+                    "source": src,
+                    "_max_cnt": cnt,
+                }
             else:
                 agent_map[aid]["memory_count"] += cnt
                 if cnt > agent_map[aid]["_max_cnt"]:
@@ -351,12 +358,22 @@ async def v1_graph_agents(
 
 
 # ============================================================
+# v2 recall 路由
+# ============================================================
+
+from app.api.memory.intelligent_recall import router as v2_recall_inner
+
+v2_recall = APIRouter(prefix="/api/v2", tags=["compat-v2-recall"])
+v2_recall.include_router(v2_recall_inner)
+
+# ============================================================
 # 聚合路由器
 # ============================================================
 
 router = APIRouter()
 router.include_router(v2_turns)
 router.include_router(v2_memories)
+router.include_router(v2_recall)
 router.include_router(v1_turns)
 router.include_router(v1_memories)
 router.include_router(v1_graph)

@@ -83,11 +83,21 @@ async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
             infer=True,
         )
 
-        # 写入 vector_memories 表
+        # 写入 vector_memories 表（跳过已存在的 qdrant_id 避免 UniqueViolation）
         results = response.get("results", [])
+        inserted = 0
         for item in results:
+            qdrant_id = item.get("id", "")
+            if not qdrant_id:
+                continue
+            existing = await db.execute(
+                select(VectorMemory).where(col(VectorMemory.qdrant_id) == qdrant_id).limit(1)
+            )
+            if existing.scalar_one_or_none():
+                logger.debug(f"Skipping duplicate qdrant_id {qdrant_id} for turn {turn.id}")
+                continue
             vm = VectorMemory(
-                qdrant_id=item.get("id", ""),
+                qdrant_id=qdrant_id,
                 user_id=turn.user_id,
                 agent_id=turn.agent_id,
                 turn_id=str(turn.id),
@@ -96,9 +106,13 @@ async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
                 source=turn.source,
             )
             db.add(vm)
+            inserted += 1
 
         await db.commit()
-        logger.info(f"Fact extraction completed for turn {turn.id}, extracted {len(results)} facts")
+        logger.info(
+            f"Fact extraction completed for turn {turn.id}, "
+            f"extracted {len(results)} facts, inserted {inserted}"
+        )
 
     except Exception as e:
         logger.error(f"Fact extraction failed for turn {turn.id}: {e}")
@@ -136,11 +150,21 @@ async def process_summary_generation(turn: Turn, db: AsyncSession) -> None:
             infer=False,
         )
 
-        # 写入 vector_memories 表
+        # 写入 vector_memories 表（跳过已存在的 qdrant_id 避免 UniqueViolation）
         results = response.get("results", [])
+        inserted = 0
         for item in results:
+            qdrant_id = item.get("id", "")
+            if not qdrant_id:
+                continue
+            existing = await db.execute(
+                select(VectorMemory).where(col(VectorMemory.qdrant_id) == qdrant_id).limit(1)
+            )
+            if existing.scalar_one_or_none():
+                logger.debug(f"Skipping duplicate qdrant_id {qdrant_id} for turn {turn.id}")
+                continue
             vm = VectorMemory(
-                qdrant_id=item.get("id", ""),
+                qdrant_id=qdrant_id,
                 user_id=turn.user_id,
                 agent_id=turn.agent_id,
                 turn_id=str(turn.id),
@@ -149,9 +173,10 @@ async def process_summary_generation(turn: Turn, db: AsyncSession) -> None:
                 source=turn.source,
             )
             db.add(vm)
+            inserted += 1
 
         await db.commit()
-        logger.info(f"Summary generation completed for turn {turn.id}")
+        logger.info(f"Summary generation completed for turn {turn.id}, inserted {inserted}")
 
     except Exception as e:
         logger.error(f"Summary generation failed for turn {turn.id}: {e}")

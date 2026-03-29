@@ -1,7 +1,7 @@
 """add task_segments table and extend vector_memories
 
 Revision ID: a8f3d2b1c4e5
-Revises: 4b71ac7dc194
+Revises: 3704ddb4afd1
 Create Date: 2026-03-29 19:00:00.000000
 
 """
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "a8f3d2b1c4e5"
-down_revision = "4b71ac7dc194"
+down_revision = "3704ddb4afd1"
 branch_labels = None
 depends_on = None
 

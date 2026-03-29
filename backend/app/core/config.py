@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     worker_max_concurrent_sessions: int = 5
     task_segmenter_use_llm: bool = False
 
+    # Recall
+    recall_vector_timeout_ms: int = 15000
+    recall_graph_timeout_ms: int = 5000
+    recall_default_budget_tokens: int = 2000
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "text"

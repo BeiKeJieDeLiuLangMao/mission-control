@@ -23,7 +23,8 @@
 ### Hook 生命周期
 ```
 用户发送消息
-  → UserPromptSubmit hook → mem0-retrieve.sh → 搜索 /api/v2/memories/search
+  → UserPromptSubmit hook → mem0-retrieve.sh → POST /api/v2/recall (智能并发召回)
+  → fallback: GET /api/v2/memories/search (向量搜索)
   → Claude 收到增强上下文
   → Claude 响应
   → Stop hook (async) → mem0-store.sh → POST /api/v2/turns/
@@ -59,7 +60,8 @@
 ### Hook 生命周期
 ```
 Agent 请求到达
-  → before_agent_start → 搜索 /api/v2/memories/search
+  → before_agent_start → POST /api/v2/recall (智能并发召回)
+  → fallback: GET /api/v2/memories/search (向量搜索)
   → Agent 执行
   → agent_end → POST /api/v2/turns/ (结构化消息)
   → Worker → extract_text_from_messages() → fact extraction + graph build
@@ -78,7 +80,8 @@ Worker 自动从结构化消息中提取纯文本进行 fact extraction，不再
 
 两个适配器都调用相同的 API 端点：
 - **存储**: `POST /api/v2/turns/` → Worker 异步处理 → Qdrant + Neo4j
-- **召回**: `GET /api/v2/memories/search` → 向量相似度搜索
+- **召回** (优先): `POST /api/v2/recall` → 智能并发召回 (Qdrant + Neo4j + corrections)
+- **召回** (fallback): `GET /api/v2/memories/search` → 向量相似度搜索
 
 API 端点实现见 `backend/app/api/memory/adapter_*.py`。
 

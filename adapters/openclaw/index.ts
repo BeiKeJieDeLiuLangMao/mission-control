@@ -846,6 +846,24 @@ function registerHooks(
       const recallSessionKey = isSubagent ? undefined : sessionId;
 
       try {
+        // Try intelligent recall first (POST /api/v2/recall)
+        const recallResult = await provider.recall(
+          event.prompt,
+          cfg.userId,
+          recallSessionKey?.split(":")[1],
+          2000,
+        );
+        if (recallResult && recallResult.contextText.trim()) {
+          api.logger.info(
+            `openclaw-mem0: recall returned ${recallResult.contextText.length} chars ` +
+            `in ${recallResult.timing?.total_ms ?? "?"}ms`,
+          );
+          return { prependContext: `<relevant-memories>\n${recallResult.contextText}\n</relevant-memories>` };
+        }
+
+        // Fallback: traditional search
+        api.logger.info("openclaw-mem0: recall empty/failed, falling back to search");
+
         // Use a larger candidate pool for recall, then filter down
         const recallTopK = Math.max((cfg.topK ?? 5) * 2, 10);
 

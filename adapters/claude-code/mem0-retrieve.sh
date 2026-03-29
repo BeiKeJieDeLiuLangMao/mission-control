@@ -142,22 +142,28 @@ main() {
         fi
     done
 
-    # 搜索相关记忆
-    local memories_json
-    # macOS 没有 timeout 命令，直接调用
-    if ! memories_json=$(search_memories "$user_message" "$user_id" "." 2>/dev/null); then
-        log_error "Failed to search memories"
-        exit 0
-    fi
+    # 优先使用智能召回 (POST /api/v2/recall)
+    local context_text
+    if context_text=$(recall_memories "$user_message" 2>/dev/null) && [[ -n "$context_text" ]]; then
+        log_debug "Recall returned context (${#context_text} chars)"
+        echo "$context_text"
+    else
+        # Fallback: 传统搜索
+        log_debug "Recall failed or empty, falling back to search"
+        local memories_json
+        if ! memories_json=$(search_memories "$user_message" "$user_id" "." 2>/dev/null); then
+            log_error "Failed to search memories"
+            exit 0
+        fi
 
-    log_debug "Found memories: $(echo "$memories_json" | jq 'length' 2>/dev/null || echo "0")"
+        log_debug "Found memories: $(echo "$memories_json" | jq 'length' 2>/dev/null || echo "0")"
 
-    # 格式化输出
-    local output
-    output=$(format_memories "$memories_json")
+        local output
+        output=$(format_memories "$memories_json")
 
-    if [[ -n "$output" ]]; then
-        echo "$output"
+        if [[ -n "$output" ]]; then
+            echo "$output"
+        fi
     fi
 
     exit 0

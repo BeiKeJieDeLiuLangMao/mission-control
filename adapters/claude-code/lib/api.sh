@@ -57,7 +57,30 @@ api_post() {
     echo "$response"
 }
 
-# 搜索记忆 (v2)
+# 智能召回 (v2, POST /api/v2/recall)
+# 用法: recall_memories "查询内容"
+# 返回: context_text 纯文本
+recall_memories() {
+    local query="$1"
+
+    local user_id
+    user_id=$(get_user_id)
+
+    local payload
+    payload=$(jq -n --arg q "$query" --arg u "$user_id" \
+        '{user_id: $u, query: $q, context_budget_tokens: 2000}')
+
+    local response
+    response=$(api_post "/api/v2/recall" "$payload")
+
+    if [[ $? -eq 0 && -n "$response" ]]; then
+        echo "$response" | jq -r '.context_text // empty' 2>/dev/null
+    else
+        return 1
+    fi
+}
+
+# 搜索记忆 (v2, fallback)
 # 用法: search_memories "查询内容" jq_expression
 search_memories() {
     local query="$1"
