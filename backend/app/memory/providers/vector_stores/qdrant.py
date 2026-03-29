@@ -61,7 +61,7 @@ class Qdrant(VectorStoreBase):
             if host and port:
                 params["host"] = host
                 params["port"] = port
-            
+
             if not params:
                 params["path"] = path
                 self.is_local = True
@@ -88,7 +88,9 @@ class Qdrant(VectorStoreBase):
         response = self.list_cols()
         for collection in response.collections:
             if collection.name == self.collection_name:
-                logger.debug(f"Collection {self.collection_name} already exists. Skipping creation.")
+                logger.debug(
+                    f"Collection {self.collection_name} already exists. Skipping creation."
+                )
                 self._create_filter_indexes()
                 return
 
@@ -104,15 +106,13 @@ class Qdrant(VectorStoreBase):
         if self.is_local:
             logger.debug("Skipping payload index creation for local Qdrant (not supported)")
             return
-            
+
         common_fields = ["user_id", "agent_id", "run_id", "actor_id"]
-        
+
         for field in common_fields:
             try:
                 self.client.create_payload_index(
-                    collection_name=self.collection_name,
-                    field_name=field,
-                    field_schema="keyword"
+                    collection_name=self.collection_name, field_name=field, field_schema="keyword"
                 )
                 logger.info(f"Created index for {field} in collection {self.collection_name}")
             except Exception as e:
@@ -128,15 +128,21 @@ class Qdrant(VectorStoreBase):
             ids (list, optional): List of IDs corresponding to vectors. Defaults to None.
         """
         logger.info(f"Inserting {len(vectors)} vectors into collection {self.collection_name}")
-        points = [
-            PointStruct(
-                id=idx if ids is None else ids[idx],
-                vector=vector,
-                payload=payloads[idx] if payloads else {},
-            )
-            for idx, vector in enumerate(vectors)
-        ]
-        self.client.upsert(collection_name=self.collection_name, points=points)
+        points = []
+        for idx, vector in enumerate(vectors):
+            try:
+                points.append(
+                    PointStruct(
+                        id=idx if ids is None else ids[idx],
+                        vector=vector,
+                        payload=payloads[idx] if payloads else {},
+                    )
+                )
+            except Exception as e:
+                point_id = idx if ids is None else ids[idx]
+                logger.error(f"Failed to create PointStruct for id={point_id}: {e}")
+        if points:
+            self.client.upsert(collection_name=self.collection_name, points=points)
 
     def _build_field_condition(self, key: str, value) -> Optional[FieldCondition]:
         """
@@ -339,7 +345,9 @@ class Qdrant(VectorStoreBase):
         Returns:
             dict: Retrieved vector.
         """
-        result = self.client.retrieve(collection_name=self.collection_name, ids=[vector_id], with_payload=True)
+        result = self.client.retrieve(
+            collection_name=self.collection_name, ids=[vector_id], with_payload=True
+        )
         return result[0] if result else None
 
     def list_cols(self) -> list:

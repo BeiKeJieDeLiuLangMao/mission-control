@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     openclaw_api_url: str = "http://127.0.0.1:18789"
     openclaw_api_timeout: int = 30
 
+    # Memory Worker
+    worker_batch_size: int = 10
+    worker_max_concurrent_sessions: int = 5
+    task_segmenter_use_llm: bool = False
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "text"

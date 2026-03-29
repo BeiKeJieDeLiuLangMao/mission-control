@@ -5,13 +5,16 @@ from app.memory.core.utils import format_entities, sanitize_relationship_for_cyp
 try:
     from langchain_neo4j import Neo4jGraph
 except ImportError:
-    raise ImportError("langchain_neo4j is not installed. Please install it using pip install langchain-neo4j")
+    raise ImportError(
+        "langchain_neo4j is not installed. Please install it using pip install langchain-neo4j"
+    )
 
 try:
     from rank_bm25 import BM25Okapi
 except ImportError:
     raise ImportError("rank_bm25 is not installed. Please install it using pip install rank-bm25")
 
+from app.memory.providers.factory import EmbedderFactory, LlmFactory
 from app.memory.providers.graphs.tools import (
     DELETE_MEMORY_STRUCT_TOOL_GRAPH,
     DELETE_MEMORY_TOOL_GRAPH,
@@ -21,7 +24,6 @@ from app.memory.providers.graphs.tools import (
     RELATIONS_TOOL,
 )
 from app.memory.providers.graphs.utils import EXTRACT_RELATIONS_PROMPT, get_delete_messages
-from app.memory.providers.factory import EmbedderFactory, LlmFactory
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +40,18 @@ class MemoryGraph:
             driver_config={"notifications_min_severity": "OFF"},
         )
         self.embedding_model = EmbedderFactory.create(
-            self.config.embedder.provider, self.config.embedder.config, self.config.vector_store.config
+            self.config.embedder.provider,
+            self.config.embedder.config,
+            self.config.vector_store.config,
         )
         self.node_label = ":`__Entity__`" if self.config.graph_store.config.base_label else ""
 
         if self.config.graph_store.config.base_label:
             # Safely add user_id index
             try:
-                self.graph.query(f"CREATE INDEX entity_single IF NOT EXISTS FOR (n {self.node_label}) ON (n.user_id)")
+                self.graph.query(
+                    f"CREATE INDEX entity_single IF NOT EXISTS FOR (n {self.node_label}) ON (n.user_id)"
+                )
             except Exception:
                 pass
             try:  # Safely try to add composite index (Enterprise only)
@@ -59,19 +65,31 @@ class MemoryGraph:
         self.llm_provider = "openai"
         if self.config.llm and self.config.llm.provider:
             self.llm_provider = self.config.llm.provider
-        if self.config.graph_store and self.config.graph_store.llm and self.config.graph_store.llm.provider:
+        if (
+            self.config.graph_store
+            and self.config.graph_store.llm
+            and self.config.graph_store.llm.provider
+        ):
             self.llm_provider = self.config.graph_store.llm.provider
 
         # Get LLM config with proper null checks
         llm_config = None
-        if self.config.graph_store and self.config.graph_store.llm and hasattr(self.config.graph_store.llm, "config"):
+        if (
+            self.config.graph_store
+            and self.config.graph_store.llm
+            and hasattr(self.config.graph_store.llm, "config")
+        ):
             llm_config = self.config.graph_store.llm.config
         elif hasattr(self.config.llm, "config"):
             llm_config = self.config.llm.config
         self.llm = LlmFactory.create(self.llm_provider, llm_config)
         self.user_id = None
         # Use threshold from graph_store config, default to 0.7 for backward compatibility
-        self.threshold = self.config.graph_store.threshold if hasattr(self.config.graph_store, 'threshold') else 0.7
+        self.threshold = (
+            self.config.graph_store.threshold
+            if hasattr(self.config.graph_store, "threshold")
+            else 0.7
+        )
 
     def add(self, data, filters):
         """
@@ -83,7 +101,9 @@ class MemoryGraph:
         """
         entity_type_map = self._retrieve_nodes_from_data(data, filters)
         to_be_added = self._establish_nodes_relations_from_data(data, filters, entity_type_map)
-        search_output = self._search_graph_db(node_list=list(entity_type_map.keys()), filters=filters)
+        search_output = self._search_graph_db(
+            node_list=list(entity_type_map.keys()), filters=filters
+        )
         to_be_deleted = self._get_delete_entities_from_search_output(search_output, data, filters)
 
         # TODO: Batch queries with APOC plugin
@@ -108,7 +128,9 @@ class MemoryGraph:
                 - "entities": List of related graph data based on the query.
         """
         entity_type_map = self._retrieve_nodes_from_data(query, filters)
-        search_output = self._search_graph_db(node_list=list(entity_type_map.keys()), filters=filters)
+        search_output = self._search_graph_db(
+            node_list=list(entity_type_map.keys()), filters=filters
+        )
 
         if not search_output:
             return []
@@ -123,7 +145,9 @@ class MemoryGraph:
 
         search_results = []
         for item in reranked_results:
-            search_results.append({"source": item[0], "relationship": item[1], "destination": item[2]})
+            search_results.append(
+                {"source": item[0], "relationship": item[1], "destination": item[2]}
+            )
 
         logger.info(f"Returned {len(search_results)} search results")
 
@@ -217,13 +241,17 @@ class MemoryGraph:
                 if tool_call["name"] != "extract_entities":
                     continue
                 for item in tool_call.get("arguments", {}).get("entities", []):
-                    entity_type_map[item["entity"]] = item["entity_type"]
+                    if "entity" in item:
+                        entity_type_map[item["entity"]] = item.get("entity_type", "unknown")
         except Exception as e:
             logger.exception(
                 f"Error in search tool: {e}, llm_provider={self.llm_provider}, search_results={search_results}"
             )
 
-        entity_type_map = {k.lower().replace(" ", "_"): v.lower().replace(" ", "_") for k, v in entity_type_map.items()}
+        entity_type_map = {
+            k.lower().replace(" ", "_"): v.lower().replace(" ", "_")
+            for k, v in entity_type_map.items()
+        }
         logger.debug(f"Entity type map: {entity_type_map}\n search_results={search_results}")
         return entity_type_map
 
@@ -240,7 +268,9 @@ class MemoryGraph:
         if self.config.graph_store.custom_prompt:
             system_content = EXTRACT_RELATIONS_PROMPT.replace("USER_ID", user_identity)
             # Add the custom prompt line if configured
-            system_content = system_content.replace("CUSTOM_PROMPT", f"4. {self.config.graph_store.custom_prompt}")
+            system_content = system_content.replace(
+                "CUSTOM_PROMPT", f"4. {self.config.graph_store.custom_prompt}"
+            )
             messages = [
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": data},
@@ -249,7 +279,10 @@ class MemoryGraph:
             system_content = EXTRACT_RELATIONS_PROMPT.replace("USER_ID", user_identity)
             messages = [
                 {"role": "system", "content": system_content},
-                {"role": "user", "content": f"List of entities: {list(entity_type_map.keys())}. \n\nText: {data}"},
+                {
+                    "role": "user",
+                    "content": f"List of entities: {list(entity_type_map.keys())}. \n\nText: {data}",
+                },
             ]
 
         _tools = [RELATIONS_TOOL]
@@ -445,8 +478,12 @@ class MemoryGraph:
             dest_embedding = self.embedding_model.embed(destination)
 
             # search for the nodes with the closest embeddings
-            source_node_search_result = self._search_source_node(source_embedding, filters, threshold=self.threshold)
-            destination_node_search_result = self._search_destination_node(dest_embedding, filters, threshold=self.threshold)
+            source_node_search_result = self._search_source_node(
+                source_embedding, filters, threshold=self.threshold
+            )
+            destination_node_search_result = self._search_destination_node(
+                dest_embedding, filters, threshold=self.threshold
+            )
 
             # TODO: Create a cypher query and common params for all the cases
             if not destination_node_search_result and source_node_search_result:
@@ -545,7 +582,9 @@ class MemoryGraph:
                 """
 
                 params = {
-                    "destination_id": destination_node_search_result[0]["elementId(destination_candidate)"],
+                    "destination_id": destination_node_search_result[0][
+                        "elementId(destination_candidate)"
+                    ],
                     "source_name": source,
                     "source_embedding": source_embedding,
                     "user_id": user_id,
@@ -583,7 +622,9 @@ class MemoryGraph:
 
                 params = {
                     "source_id": source_node_search_result[0]["elementId(source_candidate)"],
-                    "destination_id": destination_node_search_result[0]["elementId(destination_candidate)"],
+                    "destination_id": destination_node_search_result[0][
+                        "elementId(destination_candidate)"
+                    ],
                     "user_id": user_id,
                 }
                 if agent_id:
@@ -662,13 +703,18 @@ class MemoryGraph:
         for item in entity_list:
             item["source"] = item["source"].lower().replace(" ", "_")
             # Use the sanitization function for relationships to handle special characters
-            item["relationship"] = sanitize_relationship_for_cypher(item["relationship"].lower().replace(" ", "_"))
+            item["relationship"] = sanitize_relationship_for_cypher(
+                item["relationship"].lower().replace(" ", "_")
+            )
             item["destination"] = item["destination"].lower().replace(" ", "_")
         return entity_list
 
     def _search_source_node(self, source_embedding, filters, threshold=0.9):
         # Build WHERE conditions
-        where_conditions = ["source_candidate.embedding IS NOT NULL", "source_candidate.user_id = $user_id"]
+        where_conditions = [
+            "source_candidate.embedding IS NOT NULL",
+            "source_candidate.user_id = $user_id",
+        ]
         if filters.get("agent_id"):
             where_conditions.append("source_candidate.agent_id = $agent_id")
         if filters.get("run_id"):
@@ -708,7 +754,10 @@ class MemoryGraph:
 
     def _search_destination_node(self, destination_embedding, filters, threshold=0.9):
         # Build WHERE conditions
-        where_conditions = ["destination_candidate.embedding IS NOT NULL", "destination_candidate.user_id = $user_id"]
+        where_conditions = [
+            "destination_candidate.embedding IS NOT NULL",
+            "destination_candidate.user_id = $user_id",
+        ]
         if filters.get("agent_id"):
             where_conditions.append("destination_candidate.agent_id = $agent_id")
         if filters.get("run_id"):

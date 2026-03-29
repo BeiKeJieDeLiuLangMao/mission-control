@@ -2,21 +2,23 @@
 记忆处理 Worker
 
 后台轮询处理 pending turns：
-1. 按 created_at 升序取出一条 pending turn
-2. 顺序执行: fact → summary → graph
-3. 更新处理状态
+1. 批量取出 N 条 pending turns（WORKER_BATCH_SIZE）
+2. 按 session_id 分组，不同 session 并发处理，同 session 内保持顺序
+3. 顺序执行: fact → summary → graph
+4. session 内所有 pending turns 处理完后触发任务分段
 """
 
 import asyncio
 import logging
-from datetime import UTC, datetime
-from typing import Optional
+from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlmodel import col
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.config import settings
 from app.db.session import async_session_maker
-from app.memory.models import Turn, VectorMemory
+from app.memory.models import TaskSegment, Turn, VectorMemory
 from app.memory.services.client_factory import get_memory_client
 
 logger = logging.getLogger(__name__)
@@ -78,7 +80,7 @@ async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
             user_id=turn.user_id,
             agent_id=turn.agent_id,
             metadata=metadata,
-            infer=True
+            infer=True,
         )
 
         # 写入 vector_memories 表
@@ -131,7 +133,7 @@ async def process_summary_generation(turn: Turn, db: AsyncSession) -> None:
             user_id=turn.user_id,
             agent_id=turn.agent_id,
             metadata=metadata,
-            infer=False
+            infer=False,
         )
 
         # 写入 vector_memories 表
@@ -182,8 +184,10 @@ async def process_graph_build(turn: Turn, db: AsyncSession) -> None:
         if not memory_client:
             return
 
-        if getattr(memory_client, 'enable_graph', False):
-            logger.info(f"Graph build for turn {turn.id}: handled by Memory.add() during fact extraction")
+        if getattr(memory_client, "enable_graph", False):
+            logger.info(
+                f"Graph build for turn {turn.id}: handled by Memory.add() during fact extraction"
+            )
         else:
             logger.debug(f"Graph store not enabled, skipping graph build for turn {turn.id}")
 
@@ -221,28 +225,162 @@ async def process_turn(db: AsyncSession, turn: Turn) -> bool:
         return False
 
 
-async def run_worker_cycle():
-    """单次 Worker 轮询"""
+async def _process_session_turns(session_id: str, turns: list[Turn]) -> None:
+    """处理同一 session 的 turns（顺序执行，保持 created_at 升序）。
+
+    每个 turn 使用独立的 DB session，避免跨 turn 事务冲突。
+    所有 turns 处理完后触发任务分段。
+    """
+    for turn in turns:
+        async with async_session_maker() as db:
+            try:
+                # 重新从 DB 加载 turn（独立 session）
+                stmt = select(Turn).where(col(Turn.id) == turn.id)
+                result = await db.execute(stmt)
+                fresh_turn = result.scalar_one_or_none()
+                if not fresh_turn or fresh_turn.processing_status != "pending":
+                    continue
+
+                logger.info(f"Processing turn {fresh_turn.id} (session={session_id})")
+                await process_turn(db, fresh_turn)
+            except Exception as e:
+                logger.error(f"Failed to process turn {turn.id} in session {session_id}: {e}")
+
+    # Session 级后处理：任务分段
+    await process_session_segmentation(session_id)
+
+
+async def process_session_segmentation(session_id: str) -> None:
+    """Session 级任务分段。
+
+    检查 session 是否还有 pending turns，如果没有则运行 TaskSegmenter。
+    """
+    from app.memory.services.task_segmenter import segment_turns_heuristic, segment_turns_llm
+
     async with async_session_maker() as db:
         try:
-            # 按创建时间升序取出一条 pending turn
-            statement = select(Turn).where(
-                Turn.processing_status == "pending"
-            ).order_by(Turn.created_at.asc()).limit(1)
-            result = await db.execute(statement)
-            turn = result.scalar_one_or_none()
+            # 检查是否还有 pending turns
+            pending_stmt = (
+                select(func.count())
+                .select_from(Turn)
+                .where(col(Turn.session_id) == session_id, col(Turn.processing_status) == "pending")
+            )
+            pending_result = await db.execute(pending_stmt)
+            pending_count = pending_result.scalar_one()
 
-            if turn:
-                logger.info(f"Processing turn {turn.id}")
-                await process_turn(db, turn)
+            if pending_count > 0:
+                logger.debug(
+                    f"Session {session_id} still has {pending_count} pending turns, "
+                    "skipping segmentation"
+                )
+                return
+
+            # 取出 session 的所有 completed turns
+            turns_stmt = (
+                select(Turn)
+                .where(
+                    col(Turn.session_id) == session_id, col(Turn.processing_status) == "completed"
+                )
+                .order_by(col(Turn.created_at).asc())
+            )
+            turns_result = await db.execute(turns_stmt)
+            completed_turns = list(turns_result.scalars().all())
+
+            if len(completed_turns) < 2:
+                logger.debug(f"Session {session_id} has <2 completed turns, skipping segmentation")
+                return
+
+            # 检查是否已有 TaskSegment（避免重复分段）
+            existing_stmt = (
+                select(func.count())
+                .select_from(TaskSegment)
+                .where(col(TaskSegment.session_id) == session_id)
+            )
+            existing_result = await db.execute(existing_stmt)
+            existing_count = existing_result.scalar_one()
+
+            if existing_count > 0:
+                logger.debug(
+                    f"Session {session_id} already has {existing_count} segments, skipping"
+                )
+                return
+
+            # 运行分段
+            if settings.task_segmenter_use_llm:
+                segments = await segment_turns_llm(completed_turns)
             else:
+                segments = segment_turns_heuristic(completed_turns)
+
+            # 持久化
+            for seg in segments:
+                db.add(seg)
+
+            await db.commit()
+            logger.info(
+                f"Task segmentation completed for session {session_id}: "
+                f"{len(segments)} segments from {len(completed_turns)} turns"
+            )
+
+        except Exception as e:
+            logger.error(f"Session segmentation failed for {session_id}: {e}")
+            await db.rollback()
+
+
+async def run_worker_cycle() -> None:
+    """单次 Worker 轮询：批量取 pending turns，按 session 分组并发处理。"""
+    batch_size = settings.worker_batch_size
+    max_concurrent = settings.worker_max_concurrent_sessions
+
+    async with async_session_maker() as db:
+        try:
+            # 批量取出 N 条 pending turns（按 created_at 升序）
+            statement = (
+                select(Turn)
+                .where(col(Turn.processing_status) == "pending")
+                .order_by(col(Turn.created_at).asc())
+                .limit(batch_size)
+            )
+            result = await db.execute(statement)
+            turns = list(result.scalars().all())
+
+            if not turns:
                 logger.debug("No pending turns found")
+                return
+
+            logger.info(f"Fetched {len(turns)} pending turns for processing")
+
+            # 按 session_id 分组
+            session_groups: dict[str, list[Turn]] = defaultdict(list)
+            for turn in turns:
+                session_groups[turn.session_id].append(turn)
+
+            # 同 session 内按 created_at 排序（应该已经排好，但确保）
+            for sid in session_groups:
+                session_groups[sid].sort(key=lambda t: t.created_at)
+
+            # 并发处理不同 session（限制并发数）
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            async def _limited_process(sid: str, session_turns: list[Turn]) -> None:
+                async with semaphore:
+                    await _process_session_turns(sid, session_turns)
+
+            tasks = [
+                _limited_process(sid, session_turns)
+                for sid, session_turns in session_groups.items()
+            ]
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+            logger.info(
+                f"Worker cycle completed: {len(turns)} turns across "
+                f"{len(session_groups)} sessions"
+            )
 
         except Exception as e:
             logger.error(f"Worker cycle failed: {e}", exc_info=True)
 
 
-async def start_worker():
+async def start_worker() -> None:
     """启动 Worker 循环"""
     logger.info("Memory worker started")
     while True:
@@ -254,11 +392,11 @@ async def start_worker():
         await asyncio.sleep(5)  # 5 秒轮询
 
 
-def start_worker_in_background():
+def start_worker_in_background() -> None:
     """在后台线程中启动 worker"""
     import threading
 
-    def run():
+    def run() -> None:
         asyncio.run(start_worker())
 
     thread = threading.Thread(target=run, daemon=True)

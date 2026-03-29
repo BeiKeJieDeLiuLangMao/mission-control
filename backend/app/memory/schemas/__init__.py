@@ -30,8 +30,12 @@ class MemoryItem(BaseModel):
 
     id: str
     content: str = Field(..., description="记忆内容")
-    memory_type: str = Field(..., description='"fact" 或 "summary"')
+    memory_type: str = Field(..., description="fact/summary/task_fact/correction/procedure")
     score: Optional[float] = Field(None, description="向量搜索相似度分数")
+    memory_subtype: Optional[str] = Field(
+        None, description="goal/outcome/correction/procedure/decision"
+    )
+    task_segment_id: Optional[str] = None
     turn_id: Optional[str] = None
     agent_id: Optional[str] = None
     source: Optional[str] = None
@@ -54,3 +58,22 @@ class MemoryListResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+class TaskSegmentItem(BaseModel):
+    """任务分段条目"""
+
+    id: str
+    session_id: str
+    user_id: str
+    agent_id: str
+    goal: str
+    status: str = "unknown"
+    outcome: Optional[str] = None
+    task_type: Optional[str] = None
+    turn_ids: List[str] = Field(default_factory=list)
+    first_turn_at: Optional[str] = None
+    last_turn_at: Optional[str] = None
+    segmentation_confidence: float = 0.0
+    event_time: Optional[str] = None
+    created_at: Optional[str] = None
