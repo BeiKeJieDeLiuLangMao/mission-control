@@ -34,7 +34,8 @@
 | Model | 表名 | 说明 |
 |-------|------|------|
 | Turn | turns | 对话轮次 (user_id, messages, source, processing_status) |
-| VectorMemory | vector_memories | 提取的记忆 (content, memory_type, metadata, embedding) |
+| VectorMemory | vector_memories | 提取的记忆 (content, memory_type, task_segment_id, memory_subtype) |
+| TaskSegment | task_segments | 任务分段 (session_id, goal, status, task_type, turn_ids) |
 
 ### 迁移工作流
 

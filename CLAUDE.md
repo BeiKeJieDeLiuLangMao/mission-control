@@ -8,8 +8,8 @@ OpenClaw Mission Control 是一个用于运营和管理 OpenClaw/Claude Code 的
 - **Backend**: FastAPI 服务 (`backend/`),使用 SQLAlchemy + Alembic
 - **Frontend**: Next.js 应用 (`frontend/`),使用 TypeScript + React
 - **Adapters**: AI 工具集成适配器 (`adapters/`),将 Claude Code 和 OpenClaw 连接到 Memory 系统
-  - `adapters/claude-code/` — Shell hooks (UserPromptSubmit 召回 + Stop 存储)
-  - `adapters/openclaw/` — TypeScript 插件 (before_agent_start 召回 + agent_end 存储)
+  - `adapters/claude-code/` — Shell hooks (UserPromptSubmit 智能召回 + Stop 存储)
+  - `adapters/openclaw/` — TypeScript 插件 (before_agent_start 智能召回 + agent_end 存储)
 - 前后端通过 REST API 通信,前端 API 客户端由 orval 自动生成
 
 ## 核心架构
@@ -24,7 +24,7 @@ backend/
 │   ├── db/            # 数据库会话和连接管理
 │   ├── models/        # SQLAlchemy ORM 模型
 │   ├── schemas/       # Pydantic 请求/响应模式
-│   ├── memory/        # Memory 模块 (core/providers/ailearn 三层)
+│   ├── memory/        # Memory 模块 (core/providers/ailearn + services 召回/Worker/分段)
 │   └── services/      # 业务逻辑层
 ├── migrations/        # Alembic 数据库迁移
 ├── templates/         # 后端提供的模板 (用于 gateway 流程)
