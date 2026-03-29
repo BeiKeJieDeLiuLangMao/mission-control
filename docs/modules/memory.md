@@ -55,12 +55,14 @@ backend/app/memory/                   # 9 个顶层包
 ┌─────────────────────────────────────────────────────────────────┐
 │  插件层 (Claude Code hooks / OpenClaw TypeScript 插件)           │
 │  HTTP → POST http://localhost:8000/api/v2/turns/               │
+│  messages: [{role, content: string | ContentBlock[]}]           │
 └────────────────────────────┬────────────────────────────────────┘
                              │
                              ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  MC Backend (FastAPI :8000)                                      │
 │  兼容路由 → /memory/turns/ → Worker 队列                         │
+│  Worker: extract_text_from_messages() → Memory Engine (text)    │
 └────────────────────────────┬────────────────────────────────────┘
                              │
          ┌───────────────────┼───────────────────┐
@@ -68,9 +70,30 @@ backend/app/memory/                   # 9 个顶层包
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
 │  PostgreSQL  │    │   Qdrant     │    │    Neo4j     │
 │  turns       │    │  :6333       │    │  :7687       │
-│  memories    │    │  1536 维向量  │    │  实体 + 关系  │
+│  (结构化 msg) │    │  1536 维向量  │    │  实体 + 关系  │
 └──────────────┘    └──────────────┘    └──────────────┘
 ```
+
+### 消息格式
+
+Turn.messages 支持两种 content 格式 (向下兼容):
+
+```typescript
+// 纯文本 (旧格式)
+{ role: "user", content: "查看配置文件" }
+
+// 结构化 (新格式，含 tool_use/tool_result)
+{ role: "assistant", content: [
+  { type: "text", text: "让我读取配置。" },
+  { type: "tool_use", id: "call_1", name: "Read", input: { file_path: "/app/config.py" } }
+]}
+{ role: "user", content: [
+  { type: "tool_result", tool_use_id: "call_1", content: "DEBUG=true" }
+]}
+```
+
+适配器截断策略: tool_result.content max 4000 chars, tool_use.input max 2000 chars, text max 4000 chars。
+Worker 通过 `extract_text_from_messages()` (`memory_worker.py`) 将结构化消息转为纯文本后再喂给 Memory Engine。
 
 ## API 路由映射
 
@@ -79,8 +102,7 @@ backend/app/memory/                   # 9 个顶层包
 | Claude Code hooks | `POST /api/v2/turns/` | 存储对话轮次 | `api/memory/adapter_turns.py` |
 | Claude Code hooks | `GET /api/v2/memories/search` | 召回记忆 | `api/memory/adapter_compat.py` |
 | OpenClaw 插件 | `POST /api/v1/turns/` | 存储对话轮次 | `api/memory/adapter_compat.py` |
-| OpenClaw 插件 | `POST /api/v1/memories/` | 提取事实 (→ Turn) | `api/memory/adapter_compat.py` |
-| OpenClaw 插件 | `GET /api/v2/memories/search` | 召回记忆 | 同上 |
+| OpenClaw 插件 | `GET /api/v2/memories/search` | 召回记忆 | `api/memory/adapter_compat.py` |
 | 前端 Memories 页 | `GET /api/v1/memories` | 记忆列表 | `api/memory/frontend_views.py` |
 | 前端 Memory 详情 | `GET /api/v2/turns/{turn_id}` | Turn 详情 | `api/memory/adapter_compat.py` |
 | 前端 Memory 详情 | `GET /api/v2/memories/?turn_id=X` | 同 Turn 记忆 | `api/memory/adapter_compat.py` |
@@ -97,6 +119,9 @@ backend/app/memory/                   # 9 个顶层包
 - 筛选: 按来源 (OpenClaw/Claude Code) + 按 Agent
 - 搜索: 关键词搜索 (`api/memory/internal_crud.py:search_memories`)
 - 详情 Dialog: 点击卡片 → 完整内容 + Turn 关联 (session/status/messages/同 Turn 记忆)
+  - 消息渲染: `MessageContent` 组件兼容 string 和 ContentBlock[] 两种 content 格式
+  - 工具调用: `ToolCallBlock` 组件 — tool_use (amber, 🔧 工具名 + 可折叠参数) / tool_result (green, 📋 可折叠结果)
+  - tool call 计数 badge 显示在 assistant 消息头部
 
 ### 图谱视图 (`frontend/src/components/molecules/MemoryGraph.tsx`)
 - Force-directed graph (react-force-graph-2d)
@@ -115,7 +140,7 @@ backend/app/memory/                   # 9 个顶层包
 | `memory/core/engine.py` | Memory 引擎核心 (add/search/get/update/delete) |
 | `memory/core/graph_memory.py` | Neo4j 图记忆 (纯 Cypher 余弦相似度) |
 | `memory/providers/factory.py` | Provider 工厂 (LLM/Embedder/VectorStore) |
-| `memory/services/memory_worker.py` | 后台 Worker (fact extraction + graph build) |
+| `memory/services/memory_worker.py` | 后台 Worker (fact extraction + graph build, `extract_text_from_messages()` 结构化→纯文本转换) |
 | `memory/services/client_factory.py` | Memory 客户端工厂 (get_memory_client) |
 | `memory/ailearn/orchestrator.py` | AI Learn 编排器 (EnhancedAILearn) |
 | `memory/core/base.py` | MemoryBase 抽象基类 |

@@ -88,56 +88,66 @@ parse_transcript() {
             continue
         fi
 
-        # 如果是数组（多模态内容），提取文本部分
+        # 如果是数组（多模态内容），保留完整 content blocks
+        local is_array=false
         if echo "$content_field" | jq -e '. | type == "array"' >/dev/null 2>&1; then
-            entry_content=$(echo "$content_field" | jq -r '
-                map(
+            is_array=true
+        fi
+
+        if [[ "$is_array" == "true" ]]; then
+            # 保留结构化 content blocks: text + tool_use + tool_result, 过滤 thinking
+            local processed_content
+            processed_content=$(echo "$content_field" | jq '
+                [.[] | select(.type != "thinking") |
                     if .type == "text" then
-                        .text
-                    elif .type == "thinking" then
-                        ""  # 跳过 thinking
-                    else
-                        empty
-                    end
-                ) | join("")
+                        {type, text: (.text[:4000] + if (.text | length) > 4000 then "..." else "" end)}
+                    elif .type == "tool_use" then
+                        {type, id, name, input: ((.input | tostring)[:2000] | fromjson? // .input)}
+                    elif .type == "tool_result" then
+                        {type, tool_use_id,
+                         content: (if (.content | type) == "string" then
+                                     (.content[:4000] + if (.content | length) > 4000 then "...[truncated]" else "" end)
+                                  else .content end)}
+                    else . end
+                ] | select(length > 0)
             ' 2>/dev/null)
+
+            # 如果处理后为空（全是 thinking），跳过
+            if [[ -z "$processed_content" || "$processed_content" == "[]" || "$processed_content" == "null" ]]; then
+                continue
+            fi
+
+            # 构建带结构化 content 的消息
+            local msg_json
+            msg_json=$(jq -n \
+                --arg role "$entry_role" \
+                --argjson content "$processed_content" \
+                '{role: $role, content: $content}')
+            messages=$(echo "$messages" | jq ". + [$msg_json]")
+            ((count++))
         else
-            # 如果是字符串，直接使用
+            # 字符串 content: 沿用原有逻辑
             entry_content="$content_field"
+
+            # 跳过空内容
+            [[ -z "$entry_content" || "$entry_content" == "null" ]] && continue
+
+            # 清理 ANSI 颜色码
+            entry_content=$(echo "$entry_content" | sed 's/\x1b\[[0-9;]*m//g')
+
+            # 截断过长内容
+            if [[ ${#entry_content} -gt $MAX_CONTENT_LEN ]]; then
+                entry_content="${entry_content:0:$MAX_CONTENT_LEN}..."
+            fi
+
+            local msg_json
+            msg_json=$(jq -n \
+                --arg role "$entry_role" \
+                --arg content "$entry_content" \
+                '{role: $role, content: $content}')
+            messages=$(echo "$messages" | jq ". + [$msg_json]")
+            ((count++))
         fi
-
-        # 跳过空内容
-        [[ -z "$entry_content" || "$entry_content" == "null" ]] && continue
-
-        # 清理 ANSI 颜色码
-        entry_content=$(echo "$entry_content" | sed 's/\x1b\[[0-9;]*m//g')
-
-        # 截断过长内容
-        if [[ ${#entry_content} -gt $MAX_CONTENT_LEN ]]; then
-            entry_content="${entry_content:0:$MAX_CONTENT_LEN}..."
-        fi
-
-        # 标准化 role
-        case "$entry_role" in
-            "user")
-                local msg_json
-                msg_json=$(jq -n \
-                    --arg role "user" \
-                    --arg content "$entry_content" \
-                    '{role: $role, content: $content}')
-                messages=$(echo "$messages" | jq ". + [$msg_json]")
-                ((count++))
-                ;;
-            "assistant")
-                local msg_json
-                msg_json=$(jq -n \
-                    --arg role "assistant" \
-                    --arg content "$entry_content" \
-                    '{role: $role, content: $content}')
-                messages=$(echo "$messages" | jq ". + [$msg_json]")
-                ((count++))
-                ;;
-        esac
     done < "$transcript_path"
 
     echo "$messages"

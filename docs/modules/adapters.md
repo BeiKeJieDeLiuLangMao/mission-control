@@ -30,6 +30,14 @@
   → Worker 处理: fact extraction → graph build
 ```
 
+### 消息格式
+`mem0-store.sh` 保留完整 LLM 消息结构 (`parse_transcript` 函数):
+- **text block**: 截断 4000 chars
+- **tool_use block**: 保留 name/id/input (input serialize → 2000 chars)
+- **tool_result block**: 保留 tool_use_id/content (content → 4000 chars)
+- **thinking block**: 过滤
+- 字符串 content: 沿用旧逻辑 (ANSI 清理 + 截断)
+
 ### Hook 配置 (`.claude/settings.json`)
 - **UserPromptSubmit**: timeout 30s (同步，需等待向量搜索)
 - **Stop**: timeout 60s, async=true (不阻塞)
@@ -53,8 +61,13 @@
 Agent 请求到达
   → before_agent_start → 搜索 /api/v2/memories/search
   → Agent 执行
-  → agent_end → POST /api/v2/turns/
+  → agent_end → POST /api/v2/turns/ (结构化消息)
+  → Worker → extract_text_from_messages() → fact extraction + graph build
 ```
+
+### 消息存储
+`agent_end` hook 通过 `provider.recordTurn()` 发送一次结构化消息 (含 tool_use/tool_result blocks)，存入 Turn。
+Worker 自动从结构化消息中提取纯文本进行 fact extraction，不再需要单独的 `/api/v1/memories/` POST。
 
 ### Agent Tools
 `memory_search`, `memory_store`, `memory_list`, `memory_get`, `memory_forget`

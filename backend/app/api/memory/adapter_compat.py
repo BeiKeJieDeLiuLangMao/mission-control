@@ -140,36 +140,6 @@ async def v1_create_turn(request: TurnStoreRequest, session: AsyncSession = Depe
     return await create_turn(request, session)
 
 
-# v1 Memories POST（OpenClaw 插件使用 POST /api/v1/memories/ 来提取事实）
-@v1_memories.post("/memories/")
-async def v1_add_memory(
-    request: dict,
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    OpenClaw 插件调用 POST /api/v1/memories/ 带 infer=true 来提取事实。
-    转换为 Turn 创建，由 Worker 异步处理。
-    """
-    messages = request.get("messages", [])
-    user_id = request.get("user_id", "yishu")
-    agent_id = request.get("agent_id", "")
-    metadata = request.get("metadata", {})
-
-    if not messages:
-        return {"results": []}
-
-    # 创建 Turn 让 Worker 异步处理
-    turn_request = TurnStoreRequest(
-        user_id=user_id,
-        session_id=metadata.get("session_id", "openclaw-direct"),
-        agent_id=agent_id or "unknown",
-        messages=messages if isinstance(messages, list) else [{"role": "user", "content": str(messages)}],
-        source=metadata.get("source", "openclaw"),
-    )
-    result = await create_turn(turn_request, session)
-    return {"results": [], "turn_id": result.turn_id}
-
-
 # ============================================================
 # v1 Graph 路由（前端 MemoryGraph 组件使用）
 # ============================================================

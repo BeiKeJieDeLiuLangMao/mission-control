@@ -42,6 +42,18 @@ from app.memory.providers.factory import (
     VectorStoreFactory,
 )
 
+def _safe_content_str(content: object) -> str:
+    """从 content 字段提取纯文本，兼容 str 和 ContentBlock[] 两种格式。"""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            block.get("text", "") for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content) if content else ""
+
+
 # Suppress SWIG deprecation warnings globally
 warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*SwigPy.*")
 warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*swigvarlink.*")
@@ -694,7 +706,7 @@ class Memory(MemoryBase):
             if metadata and metadata.get("turn_id"):
                 filters["turn_id"] = metadata["turn_id"]
 
-            data = "\n".join([msg["content"] for msg in messages if "content" in msg and msg["role"] != "system"])
+            data = "\n".join([_safe_content_str(msg.get("content", "")) for msg in messages if "content" in msg and msg["role"] != "system"])
             added_entities = self.graph.add(data, filters)
 
         return added_entities
@@ -1760,7 +1772,7 @@ class AsyncMemory(MemoryBase):
             if filters.get("user_id") is None:
                 filters["user_id"] = "user"
 
-            data = "\n".join([msg["content"] for msg in messages if "content" in msg and msg["role"] != "system"])
+            data = "\n".join([_safe_content_str(msg.get("content", "")) for msg in messages if "content" in msg and msg["role"] != "system"])
             added_entities = await asyncio.to_thread(self.graph.add, data, filters)
 
         return added_entities

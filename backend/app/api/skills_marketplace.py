@@ -169,12 +169,16 @@ def _normalize_pack_source_url(source_url: str) -> str:
 def _validate_pack_source_url(source_url: str) -> None:
     """Validate that a skill pack source URL is safe to clone.
 
-    The current implementation is intentionally conservative:
-    - allow only https URLs
-    - block localhost
-    - block literal private/loopback/link-local IPs
+    Defence-in-depth layers (evaluated in order):
+    1. Scheme allowlist  – only ``https`` is accepted.
+    2. Literal IP blocklist – reject private/loopback/link-local/reserved/multicast
+       addresses *including* IPv6-mapped IPv4 forms (e.g. ``::ffff:127.0.0.1``).
+    3. Hostname blocklist – reject ``localhost`` and any dotless / numeric host.
+    4. Hostname allowlist – only ``github.com`` is permitted today.
+    5. Path structure     – require ``<owner>/<repo>`` path segments.
 
-    Note: DNS-based private resolution is not checked here.
+    Note: DNS-based private resolution (DNS rebinding) is not checked here;
+    the hostname allowlist to ``github.com`` makes that vector impractical.
     """
 
     parsed = urlparse(source_url)
@@ -186,27 +190,82 @@ def _validate_pack_source_url(source_url: str) -> None:
     if not host:
         raise ValueError("Pack source URL must include a hostname")
 
+    # --- Layer 2: Block literal IP addresses (before hostname allowlist) ---
+    # This runs first so that IPv6-mapped forms like [::ffff:127.0.0.1] or
+    # decimal-encoded IPs like 2130706433 are caught even if the hostname
+    # allowlist is later relaxed.
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        pass  # Not a literal IP – continue to hostname checks.
+    else:
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            raise ValueError("Pack source URL hostname is not allowed")
+        # Even a public literal IP is rejected – we require a named host.
+        raise ValueError("Pack source URL must use a hostname, not an IP address")
+
+    # --- Layer 3: Hostname blocklist ---
     if host in {"localhost"}:
         raise ValueError("Pack source URL hostname is not allowed")
 
+    # --- Layer 4: Hostname allowlist ---
     if host != "github.com":
         raise ValueError(
             "Pack source URL must be a GitHub repository URL (https://github.com/<owner>/<repo>)"
         )
 
+    # --- Layer 5: Path structure ---
     path = parsed.path.strip("/")
     if not path or path.count("/") < 1:
         raise ValueError(
             "Pack source URL must be a GitHub repository URL (https://github.com/<owner>/<repo>)"
         )
 
+
+def _validate_marketplace_skill_source_url(source_url: str) -> None:
+    """Validate a marketplace skill URL before storing it.
+
+    Unlike pack URLs (which are ``git clone``-d server-side), marketplace skill
+    URLs are not fetched by the backend directly.  However, they are later
+    embedded in instructions sent to gateway agents, which *may* fetch them.
+    To prevent the agent from being used as a blind SSRF proxy we enforce:
+
+    1. ``https`` scheme only.
+    2. No literal private/loopback/link-local/reserved IP addresses.
+    3. No ``localhost`` hostname.
+    """
+
+    parsed = urlparse(source_url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme != "https":
+        raise ValueError(f"Marketplace skill source URL must use HTTPS (got {parsed.scheme!r})")
+
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise ValueError("Marketplace skill source URL must include a hostname")
+
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return
+        pass  # Not a literal IP.
+    else:
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            raise ValueError("Marketplace skill source URL hostname is not allowed")
 
-    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
-        raise ValueError("Pack source URL hostname is not allowed")
+    if host in {"localhost"}:
+        raise ValueError("Marketplace skill source URL hostname is not allowed")
 
 
 def _to_tree_source_url(repo_source_url: str, branch: str, rel_path: str) -> str:
@@ -1052,6 +1111,11 @@ async def create_marketplace_skill(
 ) -> MarketplaceSkill:
     """Register or update a direct marketplace skill URL in the catalog."""
     source_url = str(payload.source_url).strip()
+    try:
+        _validate_marketplace_skill_source_url(source_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     existing = await MarketplaceSkill.objects.filter_by(
         organization_id=ctx.organization.id,
         source_url=source_url,
@@ -1309,6 +1373,7 @@ async def sync_skill_pack(
     try:
         discovered = _collect_pack_skills(
             source_url=pack.source_url,
+            branch=_normalize_pack_branch(pack.branch),
         )
     except RuntimeError as exc:
         raise HTTPException(

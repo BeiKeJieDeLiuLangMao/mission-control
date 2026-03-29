@@ -22,6 +22,40 @@ from app.memory.services.client_factory import get_memory_client
 logger = logging.getLogger(__name__)
 
 
+def _safe_content_str(content: object) -> str:
+    """从 content 字段提取纯文本，兼容 str 和 ContentBlock[] 两种格式。"""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            btype = block.get("type")
+            if btype == "text":
+                parts.append(block.get("text", ""))
+            elif btype == "tool_use":
+                parts.append(f"[Used tool: {block.get('name', 'unknown')}]")
+            elif btype == "tool_result":
+                result = str(block.get("content", ""))
+                if len(result) > 200:
+                    result = result[:200] + "..."
+                parts.append(f"[Tool result: {result}]")
+        return "\n".join(parts)
+    return str(content) if content else ""
+
+
+def extract_text_from_messages(messages: list[dict]) -> list[dict]:
+    """将结构化消息 (含 tool_use/tool_result blocks) 转换为纯文本消息供 Memory 引擎使用。"""
+    result: list[dict] = []
+    for msg in messages:
+        role = msg.get("role", "unknown")
+        text = _safe_content_str(msg.get("content", ""))
+        if text.strip():
+            result.append({"role": role, "content": text})
+    return result
+
+
 async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
     """从对话中提取关键事实"""
     try:
@@ -38,9 +72,9 @@ async def process_fact_extraction(turn: Turn, db: AsyncSession) -> None:
         if turn.agent_id:
             metadata["agent_id"] = turn.agent_id
 
-        # 调用 LLM 提取事实
+        # 调用 LLM 提取事实 (结构化消息转为纯文本)
         response = memory_client.add(
-            messages=turn.messages,
+            messages=extract_text_from_messages(turn.messages),
             user_id=turn.user_id,
             agent_id=turn.agent_id,
             metadata=metadata,
@@ -123,14 +157,14 @@ async def process_summary_generation(turn: Turn, db: AsyncSession) -> None:
 
 
 def _build_summary_text(messages: list) -> str:
-    """构建对话摘要文本"""
+    """构建对话摘要文本，兼容 str 和 ContentBlock[] 两种 content 格式。"""
     if not messages:
         return ""
 
     lines = []
     for msg in messages:
         role = msg.get("role", "unknown")
-        content = msg.get("content", "")
+        content = _safe_content_str(msg.get("content", ""))
         if content:
             lines.append(f"{role}: {content}")
 

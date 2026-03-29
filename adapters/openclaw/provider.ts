@@ -73,7 +73,7 @@ export class OpenMemoryProvider implements Mem0Provider {
   }
 
   // ---------------------------------------------------------------------------
-  // add — POST /api/v1/memories/
+  // add — Creates a Turn via POST /api/v1/turns/, Worker handles fact extraction
   // ---------------------------------------------------------------------------
 
   async add(
@@ -81,72 +81,24 @@ export class OpenMemoryProvider implements Mem0Provider {
     options: AddOptions,
   ): Promise<AddResult> {
     const agentId = options.run_id ?? undefined;
-
-    // Step 1: Create a turn first to establish source attribution
     const sessionId = `openclaw-${Date.now()}`;
-    let turnId: string | undefined;
 
-    try {
-      await this.request<Record<string, unknown>>(
-        "POST",
-        "/api/v1/turns/",
-        {
-          session_id: sessionId,
-          user_id: options.user_id,
-          agent_id: agentId,
-          messages: messages,
-          message_count: messages.length,
-          tool_call_count: 0,
-          total_tokens: 0,
-          source: "openclaw",
-        },
-      );
-      // Extract turn_id from the response
-      // Note: The API returns the created turn with id field
-    } catch (error) {
-      // Log but don't fail - turn creation is optional for now
-      console.warn("Failed to create turn:", error);
-    }
-
-    const body = {
-      user_id: options.user_id,
-      messages,
-      infer: true,
-      app: "openclaw",
-      memory_type: "fact",
-      agent_id: agentId,
-      turn_id: turnId,  // Link to the turn if created
-    };
-
-    const res = (await this.request<Record<string, unknown>>(
+    const res = await this.request<{ success: boolean; turn_id?: string }>(
       "POST",
-      "/api/v1/memories/",
-      body,
-    )) as unknown as AddResult;
-
-    // OpenMemory returns the created Memory object directly.
-    // If it's an array, map each item; otherwise wrap the single result.
-    if (Array.isArray(res)) {
-      const results: AddResultItem[] = res.map((item) => {
-        const normalized = this.normalizeMemoryItem(item);
-        return {
-          id: normalized.id,
-          memory: normalized.memory,
-          event: "ADD" as const,
-        };
-      });
-      return { results };
-    }
-
-    const normalized = this.normalizeMemoryItem(res);
-    if (!normalized.id) return { results: [] };
+      "/api/v1/turns/",
+      {
+        session_id: sessionId,
+        user_id: options.user_id,
+        agent_id: agentId,
+        messages,
+        source: "openclaw",
+      },
+    );
 
     return {
-      results: [{
-        id: normalized.id,
-        memory: normalized.memory,
-        event: "ADD" as const,
-      }],
+      results: res.turn_id
+        ? [{ id: res.turn_id, memory: "Turn created, Worker will extract facts", event: "ADD" as const }]
+        : [],
     };
   }
 

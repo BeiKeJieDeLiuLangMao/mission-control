@@ -57,15 +57,28 @@ def ensure_json_instruction(system_prompt, user_prompt):
     return system_prompt, user_prompt
 
 
+def _safe_content_str(content: object) -> str:
+    """从 content 字段提取纯文本，兼容 str 和 ContentBlock[] 两种格式。"""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            block.get("text", "") for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )
+    return str(content) if content else ""
+
+
 def parse_messages(messages):
     response = ""
     for msg in messages:
+        content = _safe_content_str(msg.get("content", ""))
         if msg["role"] == "system":
-            response += f"system: {msg['content']}\n"
+            response += f"system: {content}\n"
         if msg["role"] == "user":
-            response += f"user: {msg['content']}\n"
+            response += f"user: {content}\n"
         if msg["role"] == "assistant":
-            response += f"assistant: {msg['content']}\n"
+            response += f"assistant: {content}\n"
     return response
 
 

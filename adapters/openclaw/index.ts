@@ -991,13 +991,17 @@ function registerHooks(
           /All locked in\. Quick summary/i,
         ];
 
-        // First pass: extract all messages into a typed array
+        // First pass: extract all messages into a typed array (text-only for extraction)
+        // and build structured messages (with tool_use/tool_result) for turn recording
         const allParsed: Array<{
           role: string;
           content: string;
           index: number;
           isSummary: boolean;
         }> = [];
+
+        // Structured messages for recordTurn — preserves tool_use/tool_result blocks
+        const structuredMessages: Array<{ role: string; content: string | unknown[] }> = [];
 
         for (let i = 0; i < event.messages.length; i++) {
           const msg = event.messages[i];
@@ -1012,18 +1016,36 @@ function registerHooks(
 
           if (typeof content === "string") {
             textContent = content;
+            // Structured: keep string as-is
+            if (textContent.trim()) {
+              structuredMessages.push({ role: role as string, content: textContent });
+            }
           } else if (Array.isArray(content)) {
+            // Build structured content blocks (truncated, no thinking)
+            const structuredBlocks: unknown[] = [];
             for (const block of content) {
-              if (
-                block &&
-                typeof block === "object" &&
-                "text" in block &&
-                typeof (block as Record<string, unknown>).text === "string"
-              ) {
-                textContent +=
-                  (textContent ? "\n" : "") +
-                  ((block as Record<string, unknown>).text as string);
+              if (!block || typeof block !== "object") continue;
+              const b = block as Record<string, unknown>;
+              if (b.type === "text" && typeof b.text === "string") {
+                textContent += (textContent ? "\n" : "") + b.text;
+                structuredBlocks.push({ type: "text", text: (b.text as string).slice(0, 4000) });
+              } else if (b.type === "tool_use") {
+                const inputStr = typeof b.input === "string" ? b.input : JSON.stringify(b.input ?? {});
+                structuredBlocks.push({
+                  type: "tool_use", id: b.id, name: b.name,
+                  input: inputStr.length > 2000 ? inputStr.slice(0, 2000) + "..." : b.input,
+                });
+              } else if (b.type === "tool_result") {
+                const resultContent = typeof b.content === "string" ? b.content : JSON.stringify(b.content ?? "");
+                structuredBlocks.push({
+                  type: "tool_result", tool_use_id: b.tool_use_id,
+                  content: resultContent.length > 4000 ? resultContent.slice(0, 4000) + "...[truncated]" : b.content,
+                });
               }
+              // Skip thinking blocks
+            }
+            if (structuredBlocks.length > 0) {
+              structuredMessages.push({ role: role as string, content: structuredBlocks });
             }
           }
 
@@ -1074,55 +1096,38 @@ function registerHooks(
         // messages in the order they actually occurred
         candidates.sort((a, b) => a.index - b.index);
 
-        const selected = candidates.map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+        if (allParsed.length === 0 && structuredMessages.length === 0) return;
 
-        // Apply noise filtering pipeline: drop noise, strip fragments, truncate
-        const formattedMessages = filterMessagesForExtraction(selected);
+        // Skip if no meaningful user content remains
+        const hasUserContent = allParsed.some((m) => m.role === "user") ||
+          structuredMessages.some((m) => m.role === "user");
+        if (!hasUserContent) return;
 
-        if (formattedMessages.length === 0) return;
-
-        // Skip if no meaningful user content remains after filtering
-        if (!formattedMessages.some((m) => m.role === "user")) return;
-
-        // Inject a timestamp preamble so the extraction model can anchor
-        // time-sensitive facts to a concrete date and attribute to the correct user
+        // Inject a timestamp preamble for the extraction model
         const timestamp = new Date().toISOString().split("T")[0];
-        formattedMessages.unshift({
-          role: "system",
-          content: `Current date: ${timestamp}. The user is identified as "${cfg.userId}". Extract durable facts from this conversation. Include this date when storing time-sensitive information.`,
-        });
+        const turnMessages: Array<{ role: string; content: string | unknown[] }> = [
+          {
+            role: "system",
+            content: `Current date: ${timestamp}. The user is identified as "${cfg.userId}". Extract durable facts from this conversation. Include this date when storing time-sensitive information.`,
+          },
+          ...(structuredMessages.length > 0 ? structuredMessages : allParsed.map((m) => ({ role: m.role, content: m.content }))),
+        ];
 
-        const addOpts = buildAddOptions(undefined, sessionId, sessionId);
-
-        // Record the turn in OpenMemory (fire-and-forget — don't block capture)
+        // Record the turn with STRUCTURED messages — Worker handles fact extraction
         if (provider.recordTurn) {
           try {
             await provider.recordTurn({
               sessionId: sessionId ?? "unknown",
               userId: cfg.userId,
               agentId: sessionId ? sessionId.split(":")[1] : undefined,
-              messages: formattedMessages,
+              messages: turnMessages as Array<{ role: string; content: string }>,
               toolCallCount: (event as any).toolCallCount,
               totalTokens: (event as any).totalTokens,
             });
+            api.logger.info("openclaw-mem0: turn recorded successfully");
           } catch (turnErr) {
             api.logger.warn(`openclaw-mem0: turn recording failed: ${String(turnErr)}`);
           }
-        }
-
-        const result = await provider.add(
-          formattedMessages,
-          addOpts,
-        );
-
-        const capturedCount = result.results?.length ?? 0;
-        if (capturedCount > 0) {
-          api.logger.info(
-            `openclaw-mem0: auto-captured ${capturedCount} memories`,
-          );
         }
       } catch (err) {
         api.logger.warn(`openclaw-mem0: capture failed: ${String(err)}`);

@@ -97,6 +97,7 @@ cd frontend && npx playwright test e2e/memories/
 - Source badges（OpenClaw/Claude Code）、memory_type badges（fact/summary）
 - Source 和 Agent 筛选过滤
 - Memory 详情对话框及 Turn 关联（session、status、messages）
+- 结构化消息渲染: tool_use blocks (🔧 工具名 + 参数) / tool_result blocks (📋 结果) 的存储与 API 返回
 - Graph 可视化、搜索、来源筛选、Agent 筛选联动关系统计、关系类型过滤
 
 规范：

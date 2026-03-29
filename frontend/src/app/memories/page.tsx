@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useCallback, useEffect } from "react";
-import { Brain, Search, Plus, Trash2, RefreshCw, Bot, Filter, ChevronDown, ChevronUp, MessageSquare, Clock, FileText, Layers } from "lucide-react";
+import { Brain, Search, Plus, Trash2, RefreshCw, Bot, Filter, ChevronDown, ChevronUp, MessageSquare, Clock, FileText, Layers, Wrench, ClipboardList } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { DashboardShell } from "@/components/templates/DashboardShell";
@@ -59,12 +59,27 @@ interface AgentInfo {
   count: number;
 }
 
+interface ContentBlock {
+  type: "text" | "tool_use" | "tool_result";
+  text?: string;
+  id?: string;
+  name?: string;
+  input?: unknown;
+  tool_use_id?: string;
+  content?: string;
+}
+
+interface TurnMessage {
+  role: string;
+  content: string | ContentBlock[];
+}
+
 interface TurnDetail {
   id: string;
   session_id: string;
   user_id: string;
   agent_id: string;
-  messages: Array<{ role: string; content: string }>;
+  messages: TurnMessage[];
   source: string;
   processing_status: string;
   created_at: string;
@@ -533,6 +548,85 @@ function AgentFilter({
   );
 }
 
+// ------ Tool Call / Message Content Rendering ------
+function ToolCallBlock({ block }: { block: ContentBlock }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (block.type === "tool_use") {
+    const inputStr = typeof block.input === "string"
+      ? block.input
+      : JSON.stringify(block.input, null, 2);
+    return (
+      <div className="my-1 rounded border border-amber-200 bg-amber-50 p-2 text-xs">
+        <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 font-mono font-semibold text-amber-700">
+          <Wrench className="h-3 w-3" />
+          {block.name || "unknown"}
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        {expanded && (
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-amber-600 text-[11px]">
+            {inputStr.length > 2000 ? inputStr.slice(0, 2000) + "\n...[truncated]" : inputStr}
+          </pre>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === "tool_result") {
+    const resultStr = typeof block.content === "string" ? block.content : JSON.stringify(block.content);
+    return (
+      <div className="my-1 rounded border border-green-200 bg-green-50 p-2 text-xs">
+        <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 font-mono font-semibold text-green-700">
+          <ClipboardList className="h-3 w-3" />
+          Result
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        {expanded && (
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap text-green-600 text-[11px]">
+            {resultStr.length > 2000 ? resultStr.slice(0, 2000) + "\n...[truncated]" : resultStr}
+          </pre>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function MessageContent({ content }: { content: string | ContentBlock[] }) {
+  if (typeof content === "string") {
+    return (
+      <p className="mt-1 whitespace-pre-wrap text-slate-700">
+        {content.length > 500 ? content.slice(0, 500) + "..." : content}
+      </p>
+    );
+  }
+
+  // Structured content with tool blocks
+  const toolCount = content.filter((b) => b.type === "tool_use").length;
+  return (
+    <div className="mt-1 space-y-1">
+      {toolCount > 0 && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+          <Wrench className="h-2.5 w-2.5" />
+          {toolCount} tool call{toolCount > 1 ? "s" : ""}
+        </span>
+      )}
+      {content.map((block, j) => {
+        if (block.type === "text") {
+          const text = block.text || "";
+          return (
+            <p key={j} className="whitespace-pre-wrap text-slate-700">
+              {text.length > 500 ? text.slice(0, 500) + "..." : text}
+            </p>
+          );
+        }
+        return <ToolCallBlock key={j} block={block} />;
+      })}
+    </div>
+  );
+}
+
 // ------ Memory Detail Dialog ------
 function MemoryDetailDialog({
   memory,
@@ -697,11 +791,9 @@ function MemoryDetailDialog({
                               msg.role === "user" ? "bg-blue-50 border border-blue-100" : "bg-slate-50 border border-slate-100"
                             )}>
                               <span className="font-semibold text-slate-500">
-                                {msg.role === "user" ? "👤 user" : "🤖 assistant"}
+                                {msg.role === "user" ? "👤 user" : msg.role === "system" ? "⚙️ system" : "🤖 assistant"}
                               </span>
-                              <p className="mt-1 whitespace-pre-wrap text-slate-700">
-                                {msg.content.length > 500 ? msg.content.slice(0, 500) + "..." : msg.content}
-                              </p>
+                              <MessageContent content={msg.content} />
                             </div>
                           ))}
                         </div>
