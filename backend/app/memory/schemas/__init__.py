@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class TurnStoreRequest(BaseModel):
     """Turn 存储请求"""
+
     user_id: str = Field(..., min_length=1, description="用户标识")
     session_id: str = Field(..., min_length=1, description="会话 ID")
     agent_id: str = Field(..., min_length=1, description="Agent 标识")
@@ -18,6 +19,7 @@ class TurnStoreRequest(BaseModel):
 
 class TurnStoreResponse(BaseModel):
     """Turn 存储响应 - 只返回成功/失败"""
+
     success: bool
     turn_id: Optional[str] = None
     message: Optional[str] = None
@@ -25,9 +27,11 @@ class TurnStoreResponse(BaseModel):
 
 class MemoryItem(BaseModel):
     """记忆条目"""
+
     id: str
     content: str = Field(..., description="记忆内容")
     memory_type: str = Field(..., description='"fact" 或 "summary"')
+    score: Optional[float] = Field(None, description="向量搜索相似度分数")
     turn_id: Optional[str] = None
     agent_id: Optional[str] = None
     source: Optional[str] = None
@@ -38,12 +42,14 @@ class MemoryItem(BaseModel):
 
 class MemorySearchResponse(BaseModel):
     """记忆搜索响应"""
+
     items: List[MemoryItem]
     total: int
 
 
 class MemoryListResponse(BaseModel):
     """记忆列表响应"""
+
     items: List[MemoryItem]
     total: int
     page: int
