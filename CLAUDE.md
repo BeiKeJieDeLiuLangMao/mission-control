@@ -112,52 +112,14 @@ make backend-migrate           # 应用迁移
 make backend-migration-check   # 验证迁移图和可逆性
 ```
 
-## 代码风格
+## 开发规范
 
-- Python: Black (100 字符行宽) + isort + flake8 + mypy --strict
-- TypeScript: Prettier + ESLint + tsc --noEmit
-- 未使用变量用 `_variable` 前缀满足 lint
+- 代码风格: Python (Black 100 + isort + flake8 + mypy --strict) / TypeScript (Prettier + ESLint + tsc)
+- 环境: `cp .env.example .env` → `AUTH_MODE=local` 时 `LOCAL_AUTH_TOKEN` ≥ 50 字符
+- 数据库变更: `cd backend && uv run alembic revision --autogenerate -m "描述"` → `make backend-migrate`
+- Git: `feat:` | `fix:` | `docs:` | `refactor:` | `test(scope):` (Conventional Commits)
 
-## 开发注意事项
-
-### API 更新流程
-1. 在 `backend/app/api/` 中修改路由
-2. 在 `backend/app/schemas/` 中更新 Pydantic 模式
-3. 确保后端运行在 `127.0.0.1:8000`
-4. 运行 `make api-gen` 重新生成前端 API 客户端
-5. 在 `frontend/src/app/` 或组件中使用生成的客户端
-
-### 数据库变更
-1. 修改 `backend/app/models/` 中的模型
-2. 运行 `cd backend && uv run alembic revision --autogenerate -m "描述"`
-3. 检查生成的迁移文件在 `backend/migrations/versions/`
-4. 运行 `make backend-migrate` 应用迁移
-5. 使用 `make backend-migration-check` 验证迁移正确性
-
-### 环境配置
-- `cp .env.example .env` → `AUTH_MODE=local` 时 `LOCAL_AUTH_TOKEN` ≥ 50 字符
-- Memory 环境变量见 `docs/modules/memory.md`
-
-### 覆盖率
-- 强制 100%: `app.core.error_handling`, `app.services.mentions` → `make backend-coverage`
-
-## 文档同步规范
-
-本项目采用三层渐进式文档 (CLAUDE.md → docs/ → code)，修改代码时必须同步对应文档：
-
-1. **目录结构变更** → 更新 CLAUDE.md 的 Backend/Frontend 结构树
-2. **新增/重构模块** → 更新 `docs/modules/` 对应文档的架构图和关键文件表
-3. **新增 API 端点** → 更新 `docs/modules/` 中的 API 路由映射表
-4. **环境变量变更** → 更新 `docs/modules/` 中的环境变量表 + `.env.example`
-5. **新增测试方法** → 更新 `docs/testing/README.md` 或对应 Skill
-6. **数据库 Model 变更** → 更新 `docs/modules/database.md` 的 Model 表
-
-> 原则: 代码 PR 中如果涉及以上变更，docs 更新应包含在同一个 PR 中。
-
-## Git 工作流
-
-### Conventional Commits
-- `feat: ...` 新功能 | `fix: ...` bug 修复 | `docs: ...` 文档 | `refactor: ...` 重构 | `test(scope): ...` 测试
+> 详细的 API 开发流程、文档同步规范、测试规范见 `.claude/rules/` 目录。
 
 ## 功能模块 (按需深入)
 
